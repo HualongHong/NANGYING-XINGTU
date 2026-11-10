@@ -2,7 +2,7 @@
   "id": "nangying-starmap",
   "name": "囊萤星图",
   "englishName": "Nangying StarMap",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "description": "知识图谱驱动的慕课智造与准备插件",
   "slogan": "聚萤成星，一图开课。",
   "protocol": [
@@ -45,10 +45,12 @@
     ]
   },
   "adapters": [
+    "codex",
     "dsh",
     "kimi",
-    "tare",
-    "codex"
+    "qoder",
+    "trae",
+    "workbuddy"
   ],
   "capabilities": {
     "graph": true,

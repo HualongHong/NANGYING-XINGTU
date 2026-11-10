@@ -47,23 +47,26 @@ getCapabilities(): CapabilityProfile {
 ## 3. 新增平台适配器
 
 1. 在 `adapters/` 下新建平台目录，如 `adapters/newplat/`；
-2. 新建 `adapter.newplat.ts`，继承 `AdapterBase`：
+2. 新建 `profile.json` 能力档案（逐项标注置信度 confirmed/inferred/unknown；
+   公开资料不足时一律保守默认，与 dsh/workbuddy/qoder 同型）；
+3. 新建 `adapter.newplat.ts`，用共享工厂声明接线——行为零自研，全部共享 AdapterBase：
 
 ```ts
-import { AdapterBase } from '../core/adapter.base.js';
-import type { CapabilityProfile } from '../../core/types.js';
+import { createPlatformAdapter } from '../core/platformAdapter.js';
 
-export class NewplatAdapter extends AdapterBase {
-  getCapabilities(): CapabilityProfile {
-    return { platform: 'newplat', available: ['llm'], degradationPlan: {} };
-  }
-}
+export const NewplatAdapter = createPlatformAdapter({
+  platform: 'newplat',
+  available: ['documentParser', 'llm', 'ner', 'vectorRetrieval'],
+  degradationPlan: { mtEngine: 'degraded' },
+});
 ```
 
-3. 在 `manifests/plugin.manifest.json` 的 `adapters` 数组中追加 `"newplat"`；
-4. 运行 `node scripts/validate.mjs` 确认 manifest、注册表与目录一致。
+4. 在 `manifests/plugin.manifest.json` 的 `adapters` 数组中追加 `"newplat"`；
+5. 在 `tests/adapterProfile.test.ts` 的 `PLATFORM_ADAPTERS` 中登记；
+6. 运行 `node scripts/validate.mjs` 与 `pnpm test` 确认 manifest、目录、注册表与测试三方一致。
 
-新增适配器后应补充各技能执行器（`registerSkill` 的第二个参数）；基类对未注册执行器的技能返回 `unavailable`。
+技能执行器由 `adapters/core/executors.ts` 共享实现，宿主侧按需经
+`registerSharedSkills(adapter, { llm })` 一次性注册并注入 LLM；基类对未注册执行器的技能返回 `unavailable`。
 
 ## 4. 经适配器调用（LocalAdapter 参考实现）
 
@@ -77,7 +80,7 @@ const parsed = await adapter.invokeSkill('parse_course_material', {
 // parsed.level: 'full' | 'degraded' | 'unavailable'，core 的 SkillResult 原样透回
 ```
 
-`registerSharedSkills(adapter, { llm })` 可重新注册并注入宿主 LLMProvider（见第 2 节）。'4 个平台适配器（dsh/kimi/tare/codex）同样构造即注册全部技能，能力档案待平台对接确认（T11）。'
+`registerSharedSkills(adapter, { llm })` 可重新注册并注入宿主 LLMProvider（见第 2 节）。6 个平台适配器（dsh/kimi/trae/codex/workbuddy/qoder，kimi 覆盖 KimiWORK）由 `createPlatformAdapter` 工厂生成：构造即具备能力档案与降级阶梯，技能执行器由宿主按需经 `registerSharedSkills` 注册注入。
 
 ## 5. 启动 MCP server
 

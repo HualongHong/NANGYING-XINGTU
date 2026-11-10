@@ -1,5 +1,5 @@
 {
-  "platform": "tare",
+  "platform": "workbuddy",
   "capabilities": {
     "graph": { "value": true, "confidence": "inferred", "note": "插件纯逻辑可用；平台侧图谱能力待确认" },
     "multilingual": { "value": "optional", "confidence": "unknown", "note": "待平台方确认" },
@@ -10,5 +10,5 @@
   },
   "llm": { "value": true, "confidence": "inferred", "note": "假定宿主可注入 LLM；平台原生 LLM 待确认" },
   "streaming": { "value": false, "confidence": "unknown", "note": "待平台方确认" },
-  "notes": "公开资料不足：一律保守默认（false/optional + unknown），待平台方逐项确认后回填。见 DEV_LOG 待确认清单。"
+  "notes": "公开资料不足：一律保守默认（false/optional + unknown），待平台方逐项确认后回填。"
 }

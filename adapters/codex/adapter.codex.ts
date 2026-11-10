@@ -1,24 +1,10 @@
 /**
- * codex 平台适配器。能力档案以同目录 profile.json 为准（loadProfileFile），
- * 加载失败回退保守默认（conservativeDefaultProfile）。
+ * codex 平台适配器（OpenAI Codex 编码 agent 宿主）。能力档案见同目录 profile.json；
+ * 行为全部共享 adapters/core（platformAdapter 工厂 + AdapterBase 基类）。
  */
-import { AdapterBase } from '../core/adapter.base.js';
-import { conservativeDefaultProfile, type CapabilityProfile, type AdapterProfile } from '../../core/types.js';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { createPlatformAdapter } from '../core/platformAdapter.js';
 
-const PROFILE_PATH = join(dirname(fileURLToPath(import.meta.url)), 'profile.json');
-
-export class CodexAdapter extends AdapterBase {
-  getProfile(): AdapterProfile {
-    return this.loadProfileFile(PROFILE_PATH) ?? conservativeDefaultProfile('codex');
-  }
-
-  getCapabilities(): CapabilityProfile {
-    return {
-      platform: 'codex',
-      available: ['documentParser', 'llm', 'mtEngine', 'terminologyBase', 'vectorRetrieval'],
-      degradationPlan: {},
-    };
-  }
-}
+export const CodexAdapter = createPlatformAdapter({
+  platform: 'codex',
+  available: ['documentParser', 'llm', 'mtEngine', 'terminologyBase', 'vectorRetrieval'],
+});

@@ -44,7 +44,7 @@ export interface SkillDescriptor {
 
 /** 能力档案：某平台/引擎当前可用能力集合 */
 export interface CapabilityProfile {
-  /** 平台标识，如 dsh、kimi、tare、codex */
+  /** 平台标识，如 dsh、kimi、trae、codex、workbuddy、qoder */
   platform: string;
   /** 已确认可用的能力（对应技能 dependsOn 的依赖项） */
   available: string[];

@@ -38,7 +38,7 @@
 ├── skills/                # 技能契约（Markdown：shared 22 + specialized 7，各含机器可读「输入声明」段）
 ├── adapters/              # 适配层（允许 Node API）
 │   ├── core/              # 基类/执行器/本地适配器/解码器（OCR、PPTX、缓存、.env LLM 回退）
-│   └── dsh|kimi|tare|codex/  # 各平台适配器 + profile.json 能力档案
+│   └── dsh|kimi|trae|codex|workbuddy|qoder/  # 各平台适配器 + profile.json 能力档案
 ├── server/                # MCP（stdio）与 HTTP JSON-RPC 最小协议层
 ├── manifests/             # plugin.manifest.json、skills.registry.json（gen-registry 生成）、skills.meta.json
 ├── docs/                  # 架构、技能速查、接入指南、规划

@@ -10,5 +10,5 @@
   },
   "llm": { "value": true, "confidence": "confirmed", "note": "宿主即 Moonshot LLM，长上下文强；经 ctx 注入" },
   "streaming": { "value": true, "confidence": "inferred", "note": "会话式逐 token 输出" },
-  "notes": "依据：Moonshot AI/Kimi 公开产品资料（2026-10）。无数字人/TTS 原生能力；特化技能默认走降级实现。"
+  "notes": "依据：Moonshot AI/Kimi 公开产品资料（2026-10）。覆盖 Kimi Code CLI 与 KimiWORK 宿主；无数字人/TTS 原生能力；特化技能默认走降级实现。"
 }

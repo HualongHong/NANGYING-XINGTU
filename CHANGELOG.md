@@ -6,11 +6,21 @@
 
 R14 迭代：handout-docx 表格格子级 API。测试 438 → 441。
 迁移整理迭代：OCR 语言包迁至 `tessdata/`（兼容仓库根旧部署）；开发过程文档（DEV_LOG/HANDOVER/feedback/scratch）归集 `docs/dev/`（不入库）。测试保持 441。
+R15 迭代：六平台适配器——TRAE 更名写实、WorkBuddy/QoDER 新增、kimi 声明 KimiWORK 覆盖，平台接线归一化为声明式工厂。测试 441 → 442。
+
+### Added
+
+- **WorkBuddy / QoDER 平台适配器**：`adapters/workbuddy`、`adapters/qoder`，保守能力档案（unknown 置信度待平台方逐项确认回填，与 dsh 同型）；`profile.json 未加载成功时回退保守默认`的行为由共享工厂保证。
+- **TRAE 平台适配器（tare 更名）**：`adapters/tare/` 更名为 `adapters/trae/`（字节跳动 Trae AI IDE），profile 按公开产品资料写实——LLM/流式 confirmed、无数字人/TTS/视频 confirmed；`unknown` 置信度白名单从 dsh/tare 收窄为 dsh/workbuddy/qoder。
+- **kimi 适配器声明 KimiWORK 覆盖**：profile notes 明确覆盖 Kimi Code CLI 与 KimiWORK 宿主。
+- **`adapters/core/platformAdapter.ts` 声明式工厂**：`createPlatformAdapter({ platform, available, degradationPlan })` 一处解析 profile.json 路径与保守回退；profile.json 加载、能力核对、降级阶梯全部共享 AdapterBase——六个平台适配器文件各约 10 行声明、零行为自研。
+- **平台清单三方一致测试**：`manifest.adapters ↔ adapters/ 目录 ↔ 测试平台清单` 强制一致（validate.mjs (c) 的 vitest 镜像，漂移即红）。
 
 ### Changed
 
 - **OCR 语言包目录**：`chi_sim/eng.traineddata` 由仓库根迁至 `tessdata/`；`resolveOcrLangPath` 优先 `tessdata/`、回退仓库根（旧部署兼容）；`describe_capabilities` 安装指引同步。根目录不再散落二进制语言包。
 - **开发过程文档归集**：`DEV_LOG.md`、`HANDOVER.md`、`feedback/`、`scratch/` 移入 `docs/dev/`（仍全部 gitignored，随文件夹迁移但不入库）；pre-commit 钩子与 .gitignore 规则同步收敛为 `docs/dev/` 一条。
+- **平台适配器接线归一化**：dsh/kimi/codex 三个手写适配器类改为工厂声明（`available`/`degradationPlan` 数据原样保留，行为不变）；USAGE「新增平台适配器」章节改为工厂配方（建目录 → profile.json → 一行声明 → manifest 登记 → 测试登记）。
 
 ### Added
 

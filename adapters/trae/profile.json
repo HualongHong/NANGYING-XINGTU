@@ -1,0 +1,14 @@
+{
+  "platform": "trae",
+  "capabilities": {
+    "graph": { "value": true, "confidence": "confirmed", "note": "插件 core/graph 纯逻辑在 Trae 宿主内可用；LLM 注入后图谱精炼可用" },
+    "multilingual": { "value": true, "confidence": "inferred", "note": "Trae 内置 Claude/GPT/豆包等多模型，中英能力强，翻译技能经宿主 LLM 可用" },
+    "digitalHuman": { "value": false, "confidence": "confirmed", "note": "Trae 为 IDE 编码 agent 宿主，无数字人/形象建模能力" },
+    "tts": { "value": false, "confidence": "confirmed", "note": "无原生 TTS 能力" },
+    "realtime": { "value": "optional", "confidence": "inferred", "note": "IDE 对话通道可近实时交互，视宿主集成方式" },
+    "video": { "value": false, "confidence": "confirmed", "note": "无视频合成能力" }
+  },
+  "llm": { "value": true, "confidence": "confirmed", "note": "宿主内置多模型（Claude/GPT/豆包等）；经 ctx 注入" },
+  "streaming": { "value": true, "confidence": "inferred", "note": "对话式流式输出" },
+  "notes": "依据：Trae（字节跳动 AI IDE）公开产品资料（2026-10）。无数字人/TTS/视频原生能力；特化技能默认走降级实现。"
+}

@@ -1,12 +1,13 @@
 # 架构说明
 
-> 当前基线：v1.7.0，29 个技能（22 共享 + 7 特化降级实现），438 测试全绿。
+> 当前基线：v1.8.0，29 个技能（22 共享 + 7 特化降级实现），6 平台适配器（dsh/kimi/trae/codex/workbuddy/qoder，kimi 覆盖 KimiWORK 宿主）。
 
 ## 分层架构
 
 ```
 ┌─────────────────────────────────────────────┐
-│  消费层：DSH / Kimi / TARE / Codex 等 agent  │
+│  消费层：DSH / KimiWORK / TRAE / Codex /     │
+│  WorkBuddy / QoDER 等 agent                  │
 │  协议层：MCP stdio（首选）/ HTTP JSON-RPC     │
 ├─────────────────────────────────────────────┤
 │  契约层（单一事实源）                          │
@@ -18,10 +19,12 @@
 ├─────────────────────────────────────────────┤
 │  适配层 adapters/                             │
 │  core/adapter.base.ts   统一接口 + 降级阶梯   │
+│  core/platformAdapter.ts 平台接线声明工厂      │
 │  core/executors.ts      29 技能执行器          │
 │  core/decoders/         文档解码（OCR/PDF文本层）│
 │  core/jobQueue.ts       异步作业队列           │
-│  dsh|kimi|tare|codex/   平台能力档案           │
+│  dsh|kimi|trae|codex|workbuddy|qoder/        │
+│                         平台能力档案           │
 ├─────────────────────────────────────────────┤
 │  核心层 core/（平台无关纯函数，全部确定性）     │
 │  graph/   三张图谱：conceptual/experimental/  │

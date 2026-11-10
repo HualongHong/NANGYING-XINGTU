@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   conservativeDefaultProfile,
@@ -10,9 +10,22 @@ import { LocalAdapter } from '../adapters/core/local.adapter.js';
 import { KimiAdapter } from '../adapters/kimi/adapter.kimi.js';
 import { CodexAdapter } from '../adapters/codex/adapter.codex.js';
 import { DshAdapter } from '../adapters/dsh/adapter.dsh.js';
-import { TareAdapter } from '../adapters/tare/adapter.tare.js';
+import { TraeAdapter } from '../adapters/trae/adapter.trae.js';
+import { WorkbuddyAdapter } from '../adapters/workbuddy/adapter.workbuddy.js';
+import { QoderAdapter } from '../adapters/qoder/adapter.qoder.js';
 
-const PLATFORMS = ['dsh', 'kimi', 'tare', 'codex'] as const;
+/** 平台 -> 适配器类（createPlatformAdapter 工厂生成，行为共享 AdapterBase） */
+const PLATFORM_ADAPTERS = {
+  dsh: DshAdapter,
+  kimi: KimiAdapter,
+  trae: TraeAdapter,
+  codex: CodexAdapter,
+  workbuddy: WorkbuddyAdapter,
+  qoder: QoderAdapter,
+} as const;
+const PLATFORMS = Object.keys(PLATFORM_ADAPTERS).sort() as (keyof typeof PLATFORM_ADAPTERS)[];
+/** 公开资料不足、允许出现 unknown 置信度的保守平台 */
+const CONSERVATIVE_PLATFORMS = ['dsh', 'workbuddy', 'qoder'];
 
 /** manifest capabilities 键 + 扩展 video（profile 允许扩展键） */
 function expectedCapabilityKeys(): string[] {
@@ -35,16 +48,27 @@ function assertProfileShape(p: AdapterProfile) {
 }
 
 describe('适配器能力档案', () => {
-  it('四个平台 profile.json 可加载且 schema 与 manifest capabilities 对齐', () => {
+  it('六个平台 profile.json 可加载且 schema 与 manifest capabilities 对齐', () => {
     for (const plat of PLATFORMS) {
-      const adapter = new { dsh: DshAdapter, kimi: KimiAdapter, tare: TareAdapter, codex: CodexAdapter }[plat]();
+      const adapter = new PLATFORM_ADAPTERS[plat]();
       const profile = adapter.getProfile();
       expect(profile.platform).toBe(plat);
       assertProfileShape(profile);
     }
   });
 
-  it('profile.json 逐项带置信度；unknown 仅允许出现在 dsh/tare', () => {
+  it('manifest.adapters ↔ adapters/ 目录 ↔ 平台清单三方一致', () => {
+    const manifest = JSON.parse(readFileSync('manifests/plugin.manifest.json', 'utf8')) as {
+      adapters: string[];
+    };
+    const dirs = readdirSync('adapters', { withFileTypes: true })
+      .filter((d) => d.isDirectory() && d.name !== 'core')
+      .map((d) => d.name);
+    expect([...manifest.adapters].sort()).toEqual(PLATFORMS);
+    expect(dirs.sort()).toEqual(PLATFORMS);
+  });
+
+  it('profile.json 逐项带置信度；unknown 仅允许出现在保守平台（dsh/workbuddy/qoder）', () => {
     for (const plat of PLATFORMS) {
       const raw = JSON.parse(readFileSync(join('adapters', plat, 'profile.json'), 'utf8')) as AdapterProfile;
       const entries = [...Object.values(raw.capabilities), raw.llm, raw.streaming];
@@ -52,10 +76,10 @@ describe('适配器能力档案', () => {
         expect(['confirmed', 'inferred', 'unknown']).toContain(e.confidence);
       }
       const hasUnknown = entries.some((e) => e.confidence === 'unknown');
-      if (plat === 'dsh' || plat === 'tare') {
+      if (CONSERVATIVE_PLATFORMS.includes(plat)) {
         expect(hasUnknown).toBe(true); // 保守标注待确认
       } else {
-        expect(hasUnknown).toBe(false); // kimi/codex 有据写实
+        expect(hasUnknown).toBe(false); // kimi/codex/trae 有据写实
       }
     }
   });
@@ -74,7 +98,7 @@ describe('适配器能力档案', () => {
     expect(local.capabilities.tts.value).toBe(false);
   });
 
-  it('kimi/codex 档案与公开资料一致：LLM 强、无数字人/TTS', () => {
+  it('kimi/codex/trae 档案与公开资料一致：LLM 强、无数字人/TTS', () => {
     const kimi = new KimiAdapter().getProfile();
     expect(kimi.llm.value).toBe(true);
     expect(kimi.capabilities.digitalHuman.value).toBe(false);
@@ -83,6 +107,11 @@ describe('适配器能力档案', () => {
     expect(codex.llm.value).toBe(true);
     expect(codex.capabilities.digitalHuman.value).toBe(false);
     expect(codex.capabilities.tts.value).toBe(false);
+    const trae = new TraeAdapter().getProfile();
+    expect(trae.llm.value).toBe(true);
+    expect(trae.streaming.value).toBe(true);
+    expect(trae.capabilities.digitalHuman.value).toBe(false);
+    expect(trae.capabilities.tts.value).toBe(false);
   });
 
   it('profile 加载失败回退保守默认（结构非法文件返回 null → 默认）', () => {

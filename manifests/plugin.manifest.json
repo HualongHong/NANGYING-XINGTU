@@ -1,0 +1,60 @@
+{
+  "id": "nangying-starmap",
+  "name": "囊萤星图",
+  "englishName": "Nangying StarMap",
+  "version": "1.7.0",
+  "description": "知识图谱驱动的慕课智造与准备插件",
+  "slogan": "聚萤成星，一图开课。",
+  "protocol": [
+    "mcp",
+    "http-jsonrpc"
+  ],
+  "skills": {
+    "shared": [
+      "parse_course_material",
+      "extract_knowledge_graph",
+      "fuse_knowledge_graphs",
+      "diff_knowledge_graphs",
+      "design_course_structure",
+      "generate_teaching_script",
+      "translate_multilingual",
+      "build_qa_knowledge_base",
+      "recommend_learning_path",
+      "generate_personalized_feedback",
+      "export_course_package",
+      "manage_course_assets",
+      "manage_async_tasks",
+      "describe_capabilities",
+      "generate_assessment",
+      "audit_consistency",
+      "polish_teaching_text",
+      "sync_bilingual",
+      "qa_media",
+      "render_preview",
+      "build_industry_graph",
+      "link_knowledge_industry"
+    ],
+    "specialized": [
+      "register_teacher_avatar",
+      "generate_digital_human_video",
+      "synthesize_speech",
+      "orchestrate_multi_teacher",
+      "match_teaching_scene",
+      "sync_multilingual_av",
+      "realtime_qa_stream"
+    ]
+  },
+  "adapters": [
+    "dsh",
+    "kimi",
+    "tare",
+    "codex"
+  ],
+  "capabilities": {
+    "graph": true,
+    "multilingual": true,
+    "digitalHuman": "optional",
+    "tts": "optional",
+    "realtime": "optional"
+  }
+}

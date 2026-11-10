@@ -1,0 +1,31 @@
+{
+  "name": "nangying-starmap",
+  "version": "1.5.0",
+  "description": "知识图谱驱动的慕课智造与准备插件",
+  "type": "module",
+  "private": true,
+  "license": "Apache-2.0",
+  "scripts": {
+    "validate": "node scripts/validate.mjs",
+    "gen:registry": "node scripts/gen-registry.mjs",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json",
+    "serve:mcp": "node dist/server/mcp.js",
+    "serve:http": "node dist/server/http.js",
+    "ci": "node scripts/ci.mjs",
+    "config": "node dist/cli/config.js"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "typescript": "^5.5.0",
+    "vitest": "^2.1.0"
+  },
+  "optionalDependencies": {
+    "tesseract.js": "^7.0.0",
+    "sharp": "^0.34.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

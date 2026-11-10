@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# 囊萤星图 · 提交护栏：密钥与本地资产绝不入库（Git Bash 兼容）
+# 第一层防护是 .gitignore；本钩子是防误 `git add -f` / 改 .gitignore 后的第二道闸。
+
+set -u
+fail=0
+
+# 1) 严禁跟踪的文件名模式
+forbidden='^\.env(\.|$)|\.traineddata$|^testfiles/|^tessdata/|^\.nangying-starmap/|^docs/dev/'
+for f in $(git diff --cached --name-only --diff-filter=ACM); do
+  if echo "$f" | grep -qE "$forbidden"; then
+    echo "[pre-commit] 拒绝提交受保护文件: $f" >&2
+    fail=1
+  fi
+done
+
+# 2) 暂存内容扫描：疑似真实 API key（sk-/MiniMax/DeepSeek 长 token 形态）
+#    只报形态，不打印内容。
+staged=$(git diff --cached -U0 | grep '^+' | grep -v '^\+\+\+' || true)
+if echo "$staged" | grep -qE '(sk-[A-Za-z0-9]{20,}|[A-Za-z0-9_-]{32,}\.)'; then
+  echo "[pre-commit] 暂存内容疑似包含真实 API key 形态（sk-… 或 32+ 位 token），请检查" >&2
+  fail=1
+fi
+
+if [ "$fail" -ne 0 ]; then
+  echo "[pre-commit] 提交被拦截。如确需例外（不推荐），用 git commit --no-verify 并知悉风险。" >&2
+  exit 1
+fi
+exit 0

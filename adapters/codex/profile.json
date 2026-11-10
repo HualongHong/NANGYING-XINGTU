@@ -1,0 +1,14 @@
+{
+  "platform": "codex",
+  "capabilities": {
+    "graph": { "value": true, "confidence": "confirmed", "note": "插件 core/graph 纯逻辑在 Codex 宿主内可用；LLM 注入后图谱精炼可用" },
+    "multilingual": { "value": "optional", "confidence": "inferred", "note": "GPT 系列多语能力强，但插件未内置供应商 SDK，视宿主注入" },
+    "digitalHuman": { "value": false, "confidence": "confirmed", "note": "OpenAI 编码 agent 宿主无数字人能力" },
+    "tts": { "value": false, "confidence": "confirmed", "note": "TTS 不在编码 agent 能力面内" },
+    "realtime": { "value": "optional", "confidence": "inferred", "note": "视宿主通道" },
+    "video": { "value": false, "confidence": "confirmed", "note": "无视频合成能力" }
+  },
+  "llm": { "value": true, "confidence": "confirmed", "note": "宿主即 OpenAI 编码模型；经 ctx 注入" },
+  "streaming": { "value": true, "confidence": "inferred", "note": "会话式输出" },
+  "notes": "依据：OpenAI Codex 公开产品资料（2026-10）。无 TTS/数字人；特化技能默认走降级实现。"
+}

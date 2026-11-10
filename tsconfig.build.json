@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": ".",
+    "sourceMap": false
+  },
+  "include": ["core/**/*.ts", "adapters/**/*.ts", "server/**/*.ts", "manifests/skills.registry.json"]
+}

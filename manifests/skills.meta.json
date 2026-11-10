@@ -1,0 +1,459 @@
+{
+  "skills": {
+    "parse_course_material": {
+      "skillId": "parse_course_material",
+      "name": "课程材料解析",
+      "type": "shared",
+      "description": "将 PPT、讲稿、PDF、字幕等原始课程材料解析为结构化章节与知识点候选。",
+      "outputs": [
+        "structuredSections",
+        "paragraphs",
+        "tables",
+        "knowledgePointCandidates"
+      ],
+      "dependsOn": [
+        "documentParser"
+      ],
+      "degradation": "不支持的格式退化为纯文本提取",
+      "docPath": "skills/shared/parse_course_material.md"
+    },
+    "extract_knowledge_graph": {
+      "skillId": "extract_knowledge_graph",
+      "name": "知识图谱提取",
+      "type": "shared",
+      "description": "从结构化内容中抽取实体、关系与层级，构建含先修后继关系的课程知识图谱。",
+      "outputs": [
+        "entities",
+        "relations",
+        "hierarchy",
+        "prerequisiteGraph"
+      ],
+      "dependsOn": [
+        "llm",
+        "ner"
+      ],
+      "degradation": "LLM 精炼失败回落启发式图谱；空输入仅返回空骨架",
+      "docPath": "skills/shared/extract_knowledge_graph.md"
+    },
+    "fuse_knowledge_graphs": {
+      "skillId": "fuse_knowledge_graphs",
+      "name": "知识图谱融合",
+      "type": "shared",
+      "description": "融合多份课程知识图谱，跨来源归并实体并对齐来源权重，输出融合图与归并报告。",
+      "outputs": [
+        "graph",
+        "report"
+      ],
+      "dependsOn": [],
+      "degradation": "LLM 语义对齐失败时 conflicts 如实返回",
+      "docPath": "skills/shared/fuse_knowledge_graphs.md"
+    },
+    "diff_knowledge_graphs": {
+      "skillId": "diff_knowledge_graphs",
+      "name": "知识图谱比对",
+      "type": "shared",
+      "description": "比对两份课程知识图谱的实体/边差集与相似度，支持版本前后与来源差异分析。",
+      "outputs": [
+        "entitiesAdded",
+        "entitiesRemoved",
+        "edgesAdded",
+        "edgesRemoved",
+        "edgesChanged",
+        "similarity",
+        "renamedCandidates"
+      ],
+      "dependsOn": [],
+      "degradation": "LLM 重命名候选失败返回空列表",
+      "docPath": "skills/shared/diff_knowledge_graphs.md"
+    },
+    "design_course_structure": {
+      "skillId": "design_course_structure",
+      "name": "智慧课程结构设计",
+      "type": "shared",
+      "description": "基于知识图谱与教学目标生成课程脚本、教学结构与授课流程。",
+      "outputs": [
+        "courseScript",
+        "teachingStructure",
+        "teachingFlow"
+      ],
+      "dependsOn": [],
+      "degradation": "无图谱时退化为模板化结构",
+      "docPath": "skills/shared/design_course_structure.md"
+    },
+    "generate_teaching_script": {
+      "skillId": "generate_teaching_script",
+      "name": "教学脚本生成",
+      "type": "shared",
+      "description": "依据课程结构生成分镜讲稿、口播稿与字幕稿。",
+      "outputs": [
+        "storyboardScript",
+        "voiceoverScript",
+        "subtitleScript"
+      ],
+      "dependsOn": [
+        "llm"
+      ],
+      "degradation": "退化为纯文本讲稿，无分镜信息",
+      "docPath": "skills/shared/generate_teaching_script.md"
+    },
+    "translate_multilingual": {
+      "skillId": "translate_multilingual",
+      "name": "多语种翻译",
+      "type": "shared",
+      "description": "将中文讲稿翻译为中、英、俄、法、韩等多语种文本并保持术语一致。",
+      "outputs": [
+        "multilingualTexts",
+        "termGlossary"
+      ],
+      "dependsOn": [
+        "mtEngine",
+        "terminologyBase"
+      ],
+      "degradation": "无翻译引擎时退化为术语标注稿（原文保留、术语附规范译法）",
+      "docPath": "skills/shared/translate_multilingual.md"
+    },
+    "build_qa_knowledge_base": {
+      "skillId": "build_qa_knowledge_base",
+      "name": "问答库构建",
+      "type": "shared",
+      "description": "基于知识图谱与讲稿构建问答对、检索索引与意图标签，支撑课程问答。",
+      "outputs": [
+        "qaPairs",
+        "retrievalIndex",
+        "intentLabels"
+      ],
+      "dependsOn": [
+        "vectorRetrieval"
+      ],
+      "degradation": "LLM 改写失败回落模板问答（关键词倒排索引）",
+      "docPath": "skills/shared/build_qa_knowledge_base.md"
+    },
+    "recommend_learning_path": {
+      "skillId": "recommend_learning_path",
+      "name": "学习路径推荐",
+      "type": "shared",
+      "description": "结合知识图谱与学习者画像生成个性化学习路径。",
+      "outputs": [
+        "personalizedPath",
+        "learningSequence"
+      ],
+      "dependsOn": [],
+      "degradation": "按先修拓扑的默认顺序推荐",
+      "docPath": "skills/shared/recommend_learning_path.md"
+    },
+    "generate_personalized_feedback": {
+      "skillId": "generate_personalized_feedback",
+      "name": "个性化反馈",
+      "type": "shared",
+      "description": "根据学习行为与测验结果生成个性化反馈与学习建议。",
+      "outputs": [
+        "feedback",
+        "suggestions"
+      ],
+      "dependsOn": [
+        "llm"
+      ],
+      "degradation": "退化为通用模板反馈",
+      "docPath": "skills/shared/generate_personalized_feedback.md"
+    },
+    "export_course_package": {
+      "skillId": "export_course_package",
+      "name": "课程包导出",
+      "type": "shared",
+      "description": "将课程资产导出为 SCORM、IMS、视频、字幕、多语包等标准交付物。",
+      "outputs": [
+        "scormPackage",
+        "imsPackage",
+        "videoFiles",
+        "subtitleFiles",
+        "multilingualPackage"
+      ],
+      "dependsOn": [],
+      "degradation": "仅导出 Markdown 讲稿与字幕的 zip 包",
+      "docPath": "skills/shared/export_course_package.md"
+    },
+    "manage_course_assets": {
+      "skillId": "manage_course_assets",
+      "name": "课程资产管理",
+      "type": "shared",
+      "description": "统一管理课程素材、版本、元数据、权限与引用关系。",
+      "outputs": [
+        "assetRegistry",
+        "versionHistory",
+        "metadataRecords"
+      ],
+      "dependsOn": [],
+      "degradation": "退化为本地文件系统登记",
+      "docPath": "skills/shared/manage_course_assets.md"
+    },
+    "register_teacher_avatar": {
+      "skillId": "register_teacher_avatar",
+      "name": "教师数字分身注册",
+      "type": "specialized",
+      "description": "注册教师数字分身，完成形象建模与声音克隆配置。",
+      "outputs": [
+        "avatarId",
+        "voiceProfileId"
+      ],
+      "dependsOn": [
+        "digitalHumanModeling",
+        "voiceCloning"
+      ],
+      "degradation": "退化为静态头像搭配文字讲稿",
+      "docPath": "skills/specialized/register_teacher_avatar.md"
+    },
+    "generate_digital_human_video": {
+      "skillId": "generate_digital_human_video",
+      "name": "数字人授课视频生成",
+      "type": "specialized",
+      "description": "基于讲稿与数字分身生成带口型同步的授课视频。",
+      "outputs": [
+        "teachingVideo",
+        "subtitleTrack"
+      ],
+      "dependsOn": [
+        "videoGeneration",
+        "lipSync"
+      ],
+      "degradation": "退化为 PPT 翻页配字幕的视频",
+      "docPath": "skills/specialized/generate_digital_human_video.md"
+    },
+    "synthesize_speech": {
+      "skillId": "synthesize_speech",
+      "name": "多语种语音合成",
+      "type": "specialized",
+      "description": "将多语种讲稿合成为自然语音，支持多音色与多语种。",
+      "outputs": [
+        "audioTracks"
+      ],
+      "dependsOn": [
+        "ttsEngine"
+      ],
+      "degradation": "退化为纯字幕输出，无语音",
+      "docPath": "skills/specialized/synthesize_speech.md"
+    },
+    "orchestrate_multi_teacher": {
+      "skillId": "orchestrate_multi_teacher",
+      "name": "多教师数字分身协同",
+      "type": "specialized",
+      "description": "调度多个教师数字分身协同授课，完成分工与镜头编排。",
+      "outputs": [
+        "orchestratedSegments",
+        "shotSchedule"
+      ],
+      "dependsOn": [
+        "multiAvatarOrchestration"
+      ],
+      "degradation": "退化为单教师模式授课",
+      "docPath": "skills/specialized/orchestrate_multi_teacher.md"
+    },
+    "match_teaching_scene": {
+      "skillId": "match_teaching_scene",
+      "name": "多场景智能匹配切换",
+      "type": "specialized",
+      "description": "按教学内容智能匹配并切换虚拟教学场景与背景。",
+      "outputs": [
+        "sceneAssignments",
+        "sceneTransitions"
+      ],
+      "dependsOn": [
+        "sceneLibrary",
+        "videoComposition"
+      ],
+      "degradation": "退化为固定背景授课",
+      "docPath": "skills/specialized/match_teaching_scene.md"
+    },
+    "sync_multilingual_av": {
+      "skillId": "sync_multilingual_av",
+      "name": "多语种音视频同步",
+      "type": "specialized",
+      "description": "将多语种音轨、字幕与画面逐语种对齐同步，保证时码一致。",
+      "outputs": [
+        "syncedAvPackages"
+      ],
+      "dependsOn": [
+        "avAlignment"
+      ],
+      "degradation": "退化为分语种独立输出，不做对齐",
+      "docPath": "skills/specialized/sync_multilingual_av.md"
+    },
+    "realtime_qa_stream": {
+      "skillId": "realtime_qa_stream",
+      "name": "实时问答流式交互",
+      "type": "specialized",
+      "description": "提供实时问答的流式交互通道，支持课堂即时答疑。",
+      "outputs": [
+        "streamedAnswer"
+      ],
+      "dependsOn": [
+        "realtimeChannel",
+        "streamingApi"
+      ],
+      "degradation": "退化为异步问答，无实时流",
+      "docPath": "skills/specialized/realtime_qa_stream.md"
+    },
+    "manage_async_tasks": {
+      "skillId": "manage_async_tasks",
+      "name": "异步任务管理",
+      "type": "shared",
+      "description": "异步作业注册表查询：query/list/cancel/cleanup 作业状态、进度、结果与错误。",
+      "outputs": [
+        "job",
+        "jobs"
+      ],
+      "dependsOn": [],
+      "degradation": "作业不存在返回 unavailable 并说明；cancel 幂等；cleanup 清理超龄终态作业",
+      "docPath": "skills/shared/manage_async_tasks.md"
+    },
+    "describe_capabilities": {
+      "skillId": "describe_capabilities",
+      "name": "能力自述",
+      "type": "shared",
+      "description": "列出全部技能的真实入参名、别名、必填项、类型、上游技能与降级条件，可按 skillId 过滤。",
+      "outputs": [
+        "skills",
+        "count"
+      ],
+      "dependsOn": [],
+      "degradation": "skillId 不存在返回 unavailable 并列出全部可用技能 id；本技能无外部依赖，永远可用",
+      "docPath": "skills/shared/describe_capabilities.md"
+    },
+    "generate_assessment": {
+      "skillId": "generate_assessment",
+      "name": "图谱命题",
+      "type": "shared",
+      "description": "从知识图谱自动出题：题干/题型/难度/Bloom 层级/答案/解析/典型错误/评分点，概念与实体出处取材。",
+      "outputs": [
+        "assessment",
+        "stats"
+      ],
+      "dependsOn": [
+        "llm"
+      ],
+      "degradation": "LLM 精炼失败回落模板题；空图谱返回空题册",
+      "docPath": "skills/shared/generate_assessment.md"
+    },
+    "audit_consistency": {
+      "skillId": "audit_consistency",
+      "name": "一致性核查",
+      "type": "shared",
+      "description": "跨材料一致性核查：日期/学时/数值口径/知识点覆盖矛盾交叉比对，输出冲突清单（含涉及资产与修改建议）。",
+      "outputs": [
+        "conflicts",
+        "checkedAssets",
+        "stats"
+      ],
+      "dependsOn": [
+        "llm"
+      ],
+      "degradation": "LLM 复核失败保留启发式结果；assets 不足两项返回 unavailable",
+      "docPath": "skills/shared/audit_consistency.md"
+    },
+    "polish_teaching_text": {
+      "skillId": "polish_teaching_text",
+      "name": "文本润色",
+      "type": "shared",
+      "description": "教学文本去机器味润色：套话清除/重复词/句长均衡/连接词多样性，注入 LLM 得逐句改写建议（术语保护+改动幅度约束）。",
+      "outputs": [
+        "polished",
+        "changes",
+        "stats"
+      ],
+      "dependsOn": [
+        "llm"
+      ],
+      "degradation": "无 LLM 仅启发式报告（degraded）；LLM 失败回落启发式",
+      "docPath": "skills/shared/polish_teaching_text.md"
+    },
+    "sync_bilingual": {
+      "skillId": "sync_bilingual",
+      "name": "双语同步",
+      "type": "shared",
+      "description": "中英双语同步：以中文原文为锚逐段对齐译文，术语/公式锁定与一致性检查；translate 模式复用 translate_multilingual 术语库机制。",
+      "outputs": [
+        "segments",
+        "anchors",
+        "termConsistency",
+        "translated"
+      ],
+      "dependsOn": [
+        "llm",
+        "mtEngine",
+        "terminologyBase"
+      ],
+      "degradation": "无 LLM 仅段落切分+对照骨架（degraded）；LLM 失败回落骨架",
+      "docPath": "skills/shared/sync_bilingual.md"
+    },
+    "qa_media": {
+      "skillId": "qa_media",
+      "name": "媒体验收",
+      "type": "shared",
+      "description": "视频/动画资产自动验收门禁：场景切换关键帧、静音占比、字幕时间轴回绕/重叠检测；ffmpeg 引擎门控，无引擎时字幕静态检查仍可用。",
+      "outputs": [
+        "findings",
+        "video",
+        "keyframeTimestampsMs",
+        "silenceSegmentsMs",
+        "cueCount",
+        "stats"
+      ],
+      "dependsOn": [
+        "ffmpeg"
+      ],
+      "degradation": "无引擎+无字幕 → unavailable+安装指引；无引擎+有字幕 → degraded 仅静态检查",
+      "docPath": "skills/shared/qa_media.md"
+    },
+    "render_preview": {
+      "skillId": "render_preview",
+      "name": "版面预览",
+      "type": "shared",
+      "description": "结构化版面预览：docx 标题大纲/表格统计、pptx 每页要点、pdf 文本层与扫描件判定、xlsx 行列；魔数类型识别，扩展名与内容不符显著标注。",
+      "outputs": [
+        "fileType",
+        "claimedType",
+        "contentMismatch",
+        "docx",
+        "pptx",
+        "pdf",
+        "xlsx"
+      ],
+      "dependsOn": [],
+      "degradation": "无法识别的类型 → unavailable；单类型解析失败仅缺该项",
+      "docPath": "skills/shared/render_preview.md"
+    },
+    "build_industry_graph": {
+      "skillId": "build_industry_graph",
+      "name": "产业图谱",
+      "type": "shared",
+      "description": "产业图谱构建（产教图谱第三张图谱）：产业链环节/岗位/工作任务/技能/工具/趋势六类本体与五类关系；sections+fields 或 JD 自由文本双形态输入。",
+      "outputs": [
+        "entities",
+        "relations",
+        "stats"
+      ],
+      "dependsOn": [
+        "llm"
+      ],
+      "degradation": "text 形态无 LLM → 词面启发式 degraded；零命中 unavailable",
+      "docPath": "skills/shared/build_industry_graph.md"
+    },
+    "link_knowledge_industry": {
+      "skillId": "link_knowledge_industry",
+      "name": "产教关联",
+      "type": "shared",
+      "description": "知识点↔产业需求三层关联：词面/LLM 语义/聚合；供需缺口报告（按岗位热度排序+建议补充教学点）、课程覆盖冗余、matched 溯源清单。",
+      "outputs": [
+        "links",
+        "matched",
+        "gaps",
+        "coverage",
+        "stats"
+      ],
+      "dependsOn": [
+        "llm"
+      ],
+      "degradation": "LLM 失败回落词面层标 degraded；词面层永远可用",
+      "docPath": "skills/shared/link_knowledge_industry.md"
+    }
+  }
+}

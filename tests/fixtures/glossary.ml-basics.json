@@ -1,0 +1,131 @@
+{
+  "entries": [
+    {
+      "term": "交叉熵",
+      "lang": "zh",
+      "translations": { "en": "cross-entropy" },
+      "domain": "machine-learning",
+      "note": "分类任务常用损失函数"
+    },
+    {
+      "term": "分类",
+      "lang": "zh",
+      "translations": { "en": "classification" },
+      "domain": "machine-learning"
+    },
+    {
+      "term": "过拟合",
+      "lang": "zh",
+      "translations": { "en": "overfitting" },
+      "domain": "machine-learning"
+    },
+    {
+      "term": "回归",
+      "lang": "zh",
+      "translations": { "en": "regression" },
+      "domain": "machine-learning"
+    },
+    {
+      "term": "标签",
+      "lang": "zh",
+      "translations": { "en": "label" },
+      "domain": "machine-learning"
+    },
+    {
+      "term": "泛化",
+      "lang": "zh",
+      "translations": { "en": "generalization" },
+      "domain": "machine-learning"
+    },
+    {
+      "term": "特征",
+      "lang": "zh",
+      "translations": { "en": "feature" },
+      "domain": "machine-learning"
+    },
+    {
+      "term": "模型",
+      "lang": "zh",
+      "translations": { "en": "model" },
+      "domain": "machine-learning"
+    },
+    {
+      "term": "正则化",
+      "lang": "zh",
+      "translations": { "en": "regularization" },
+      "domain": "machine-learning"
+    },
+    {
+      "term": "机器学习",
+      "lang": "zh",
+      "translations": { "en": "machine learning" },
+      "domain": "machine-learning"
+    },
+    {
+      "term": "聚类",
+      "lang": "zh",
+      "translations": { "en": "clustering" },
+      "domain": "machine-learning"
+    },
+    {
+      "term": "梯度下降",
+      "lang": "zh",
+      "translations": { "en": "gradient descent" },
+      "domain": "machine-learning"
+    },
+    {
+      "term": "测试集",
+      "lang": "zh",
+      "translations": { "en": "test set" },
+      "domain": "machine-learning"
+    },
+    {
+      "term": "收敛",
+      "lang": "zh",
+      "translations": { "en": "convergence" },
+      "domain": "machine-learning"
+    },
+    {
+      "term": "监督学习",
+      "lang": "zh",
+      "translations": { "en": "supervised learning" },
+      "domain": "machine-learning"
+    },
+    {
+      "term": "训练集",
+      "lang": "zh",
+      "translations": { "en": "training set" },
+      "domain": "machine-learning"
+    },
+    {
+      "term": "迭代",
+      "lang": "zh",
+      "translations": { "en": "iteration" },
+      "domain": "machine-learning"
+    },
+    {
+      "term": "损失函数",
+      "lang": "zh",
+      "translations": { "en": "loss function" },
+      "domain": "machine-learning"
+    },
+    {
+      "term": "无监督学习",
+      "lang": "zh",
+      "translations": { "en": "unsupervised learning" },
+      "domain": "machine-learning"
+    },
+    {
+      "term": "学习率",
+      "lang": "zh",
+      "translations": { "en": "learning rate" },
+      "domain": "machine-learning"
+    },
+    {
+      "term": "神经网络",
+      "lang": "zh",
+      "translations": { "en": "neural network" },
+      "domain": "machine-learning"
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 # 技能速查表
 
-共 29 个技能：共享型 22 个（平台无关）+ 特化型 7 个（可降级）。
+共 30 个技能：共享型 23 个（平台无关）+ 特化型 7 个（可降级）。
 
 ## 共享型技能
 
@@ -16,6 +16,7 @@
 | generate_personalized_feedback | 个性化反馈 | 学习行为+测验 → 反馈与建议 | 通用模板反馈 |
 | export_course_package | 课程包导出 | 课程资产 → SCORM/IMS/字幕/多语包/docx/pptx/pdf/xlsx | 仅 Markdown+字幕 zip |
 | manage_course_assets | 课程资产管理 | 操作指令 → 资产登记、版本、元数据 | 本地文件系统登记 |
+| submit_feedback | 反馈协调 | 问题/满意执行（含未用插件）→ 脱敏草稿 → 审阅门后入库 | 输入非法不储存；approve 未通过拒绝 |
 
 ## 特化型技能
 

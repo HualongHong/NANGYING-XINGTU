@@ -9,6 +9,7 @@ const steps = [
   ['校验契约', 'node scripts/validate.mjs'],
   ['类型检查', 'pnpm typecheck'],
   ['单元与集成测试', 'pnpm test'],
+  ['反馈闭环监控', 'node scripts/feedback-loop.mjs'],
 ];
 
 for (const [name, command] of steps) {

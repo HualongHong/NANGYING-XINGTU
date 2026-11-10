@@ -7,6 +7,14 @@
 R14 迭代：handout-docx 表格格子级 API。测试 438 → 441。
 迁移整理迭代：OCR 语言包迁至 `tessdata/`（兼容仓库根旧部署）；开发过程文档（DEV_LOG/HANDOVER/feedback/scratch）归集 `docs/dev/`（不入库）。测试保持 441。
 R15 迭代：六平台适配器——TRAE 更名写实、WorkBuddy/QoDER 新增、kimi 声明 KimiWORK 覆盖，平台接线归一化为声明式工厂。测试 441 → 442。
+R16 迭代：反馈闭环——`submit_feedback` 技能（默认脱敏 + 审阅门 + 显式敏感通道）+ 编程端 loop engineering（指标/门槛/CI 强制）。测试 442 → 464。
+
+### Added
+
+- **`submit_feedback` 反馈协调技能（第 23 个共享技能）**：两阶段——`prepare` 生成默认脱敏的反馈草稿（**绝不入库**）→ 用户审阅 → `approve` 且 `approved=true` 才存储至 `.nangying-feedback/`（gitignored）；未审阅通过一律拒绝储存。反馈类型覆盖安装问题/使用问题/满意执行（`praise`，含未用插件场景 `not_used`）/改进建议。`includeSensitive=true` 为显式敏感通道：用户明确命令提供的片段以「敏感附件」段原样入库（标记请勿外传），未开启则默认忽略。
+- **脱敏引擎 `core/feedback/sanitize.ts`**：确定性纯函数，覆盖 API key（sk-/32+令牌/AWS/GitHub/Bearer）、邮箱、IPv4、用户目录绝对路径（Unix/Windows）、.env 敏感赋值、超长随机串；输出替换文本 + 脱敏清单；`approve` 阶段对审阅编辑内容二次脱敏兜底。
+- **反馈存储 `adapters/core/feedbackStore.ts`**：`accepted/<docId>.json` 全文 + `index.jsonl` 索引（含 `hasSensitive`/`consumed` 标记），支持 `NANGYING_FEEDBACK_DIR` 覆盖（测试隔离）。
+- **loop engineering（编程端自我革新机制）**：`scripts/feedback-loop.mjs` 计算自我监控指标（分类分布/敏感附件占比/未消化问题数/最老滞留天数），对 `manifests/loop.thresholds.json` 门槛求值，样本量达标后超阈 exit 1——**先闭环反馈再开发**；`--consume <docId>` 标记消化；`--json` 供工具消费。已接入 `scripts/ci.mjs`（GitHub CI 空库安全通过）。机制文档 `docs/LOOP_ENGINEERING.md`：捕获→脱敏→审阅门→入库→指标→开发门槛→迭代，含迭代准入清单与 praise 转回归金标规则。
 
 ### Added
 

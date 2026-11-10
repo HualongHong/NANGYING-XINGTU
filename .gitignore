@@ -28,3 +28,6 @@ tessdata/
 # ---------- 系统与日志杂物 ----------
 *.log
 .DS_Store
+
+# ---------- 反馈闭环数据（gitignored；含可选敏感调试信息，绝不入库） ----------
+.nangying-feedback/

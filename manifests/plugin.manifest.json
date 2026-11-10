@@ -32,7 +32,8 @@
       "qa_media",
       "render_preview",
       "build_industry_graph",
-      "link_knowledge_industry"
+      "link_knowledge_industry",
+      "submit_feedback"
     ],
     "specialized": [
       "register_teacher_avatar",

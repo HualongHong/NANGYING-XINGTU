@@ -42,6 +42,7 @@ import { syncBilingual } from '../../core/i18n/syncBilingual.js';
 import { parseSrt, auditSubtitleTimeline, mergeEngineFindings, finalizeReport } from '../../core/qa/mediaAudit.js';
 import { buildIndustryGraph } from '../../core/graph/buildIndustryGraph.js';
 import { linkKnowledgeIndustry } from '../../core/graph/linkKnowledgeIndustry.js';
+import { buildFeedbackDraft, buildAcceptedDocument } from '../../core/feedback/feedback.js';
 import type { AdapterBase } from './adapter.base.js';
 import registry from '../../manifests/skills.registry.json' with { type: 'json' };
 
@@ -76,6 +77,7 @@ const IMPLEMENTED_SKILLS = [
   'render_preview',
   'build_industry_graph',
   'link_knowledge_industry',
+  'submit_feedback',
 ] as const;
 
 type ImplementedSkillId = (typeof IMPLEMENTED_SKILLS)[number];
@@ -1170,6 +1172,70 @@ const rawExecutors: Record<
     return linkKnowledgeIndustry(inputs as never, ctx);
   },
   // 能力自述：从注册表（gen-registry 生成，契约单一事实源的投影）输出真实入参契约
+  // 反馈协调：prepare 生成脱敏草稿（绝不入库）→ 审阅门 approve（approved=true 才存储）
+  submit_feedback: async (inputs) => {
+    const stage = inputs.stage === 'approve' ? 'approve' : 'prepare';
+    if (stage === 'prepare') {
+      const docId = `fb-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+      const draft = buildFeedbackDraft(
+        {
+          kind: inputs.kind,
+          summary: inputs.summary,
+          detail: inputs.detail,
+          context: inputs.context,
+          includeSensitive: inputs.includeSensitive,
+          sensitiveExcerpt: inputs.sensitiveExcerpt,
+        },
+        { docId, now: new Date().toISOString() },
+      );
+      if ('error' in draft) {
+        return {
+          skillId: 'submit_feedback',
+          level: 'unavailable',
+          errorCode: 'INVALID_INPUT' as const,
+          degradationNote: `输入校验失败：${draft.error}`,
+          example: '{ "stage": "prepare", "kind": "install_issue", "summary": "一句话标题" }',
+        };
+      }
+      const { redactionSummary } = await import('../../core/feedback/sanitize.js');
+      return {
+        skillId: 'submit_feedback',
+        level: 'full',
+        degradationNote: '',
+        data: {
+          draft,
+          redactionSummary: redactionSummary(draft.redactions),
+          next: '审阅 draft；通过后以 stage="approve" 且 approved=true 提交，未通过不储存',
+        },
+      };
+    }
+    const doc = buildAcceptedDocument(
+      { draft: inputs.draft, approved: inputs.approved, reviewComment: inputs.reviewComment },
+      { now: new Date().toISOString() },
+    );
+    if ('error' in doc) {
+      return {
+        skillId: 'submit_feedback',
+        level: 'unavailable',
+        errorCode: 'INVALID_INPUT' as const,
+        degradationNote: `审阅门拒绝：${doc.error}`,
+        example: '{ "stage": "approve", "approved": true, "draft": { "...": "prepare 返回的 draft" } }',
+      };
+    }
+    const { saveAcceptedFeedback } = await import('./feedbackStore.js');
+    const { path } = saveAcceptedFeedback(doc);
+    return {
+      skillId: 'submit_feedback',
+      level: 'full',
+      degradationNote: '',
+      data: {
+        stored: true,
+        path,
+        docId: doc.docId,
+        loop: '已纳入 loop engineering 监控：node scripts/feedback-loop.mjs',
+      },
+    };
+  },
   describe_capabilities: async (inputs) => {
     const { skillId } = inputs as { skillId?: string };
     const all = (registry as { skills: SkillDescriptor[] }).skills;
@@ -1290,6 +1356,8 @@ const executors: Record<
   manage_async_tasks: guarded('manage_async_tasks', [
     { name: 'operation', kind: 'string', hint: "操作类型 'query'|'list'|'cancel'|'cleanup'（gc 同 cleanup）" },
   ], rawExecutors.manage_async_tasks),
+  // 规格留空：stage 条件必填（prepare 要 kind/summary；approve 要 draft/approved），raw 守卫结构化报错
+  submit_feedback: guarded('submit_feedback', [], rawExecutors.submit_feedback),
   describe_capabilities: guarded('describe_capabilities', [], rawExecutors.describe_capabilities),
   generate_assessment: guarded('generate_assessment', [
     { name: 'graph', kind: 'object', hint: 'extract_knowledge_graph 或 fuse_knowledge_graphs 的输出（含 entities 数组）' },

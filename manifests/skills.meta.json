@@ -454,6 +454,22 @@
       ],
       "degradation": "LLM 失败回落词面层标 degraded；词面层永远可用",
       "docPath": "skills/shared/link_knowledge_industry.md"
+    },
+    "submit_feedback": {
+      "skillId": "submit_feedback",
+      "name": "反馈协调",
+      "type": "shared",
+      "description": "安装/使用问题与满意执行（含未使用插件场景）的反馈协调：prepare 生成默认脱敏的反馈草稿供用户审阅（绝不入库）；approve 仅在 approved=true 后存储至 .nangying-feedback/；支持用户显式命令附带敏感信息便于调试；已接受反馈供 loop engineering 监控与开发门槛迭代。",
+      "outputs": [
+        "draft",
+        "redactionSummary",
+        "stored",
+        "path",
+        "docId"
+      ],
+      "dependsOn": [],
+      "degradation": "无外部依赖永远可用；输入非法返回 INVALID_INPUT 结构化错误，任何阶段不储存非法文档；approve 未经 approved=true 直接拒绝",
+      "docPath": "skills/shared/submit_feedback.md"
     }
   }
 }

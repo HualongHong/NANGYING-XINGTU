@@ -1,6 +1,6 @@
 # 架构说明
 
-> 当前基线：v1.8.0，29 个技能（22 共享 + 7 特化降级实现），6 平台适配器（dsh/kimi/trae/codex/workbuddy/qoder，kimi 覆盖 KimiWORK 宿主）。
+> 当前基线：v1.8.0，30 个技能（23 共享 + 7 特化降级实现），6 平台适配器（dsh/kimi/trae/codex/workbuddy/qoder，kimi 覆盖 KimiWORK 宿主）；反馈闭环见 docs/LOOP_ENGINEERING.md。
 
 ## 分层架构
 
@@ -20,7 +20,7 @@
 │  适配层 adapters/                             │
 │  core/adapter.base.ts   统一接口 + 降级阶梯   │
 │  core/platformAdapter.ts 平台接线声明工厂      │
-│  core/executors.ts      29 技能执行器          │
+│  core/executors.ts      30 技能执行器          │
 │  core/decoders/         文档解码（OCR/PDF文本层）│
 │  core/jobQueue.ts       异步作业队列           │
 │  dsh|kimi|trae|codex|workbuddy|qoder/        │

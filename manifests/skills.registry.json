@@ -1407,6 +1407,98 @@
       "usage": "知识点↔产业需求三层关联（词面/LLM/聚合）：供需缺口报告、课程覆盖冗余、按岗位聚合"
     },
     {
+      "skillId": "submit_feedback",
+      "name": "反馈协调",
+      "type": "shared",
+      "description": "安装/使用问题与满意执行（含未使用插件场景）的反馈协调：prepare 生成默认脱敏的反馈草稿供用户审阅（绝不入库）；approve 仅在 approved=true 后存储至 .nangying-feedback/；支持用户显式命令附带敏感信息便于调试；已接受反馈供 loop engineering 监控与开发门槛迭代。",
+      "inputs": [
+        "stage",
+        "kind",
+        "summary",
+        "detail",
+        "context",
+        "includeSensitive",
+        "sensitiveExcerpt",
+        "draft",
+        "approved",
+        "reviewComment"
+      ],
+      "required": [],
+      "inputSpecs": [
+        {
+          "name": "stage",
+          "kind": "string",
+          "required": false,
+          "hint": "'\"prepare\"（默认）生成脱敏草稿供审阅；\"approve\" 审阅通过后入库'"
+        },
+        {
+          "name": "kind",
+          "kind": "string",
+          "required": false,
+          "hint": "prepare 必填：install_issue | usage_issue | praise | not_used | suggestion"
+        },
+        {
+          "name": "summary",
+          "kind": "string",
+          "required": false,
+          "hint": "prepare 必填：一句话标题（非空）"
+        },
+        {
+          "name": "detail",
+          "kind": "string",
+          "required": false,
+          "hint": "详细描述：现象/复现步骤/期望行为，可附堆栈"
+        },
+        {
+          "name": "context",
+          "kind": "string",
+          "required": false,
+          "hint": "环境信息：平台/版本/系统/安装方式（将与正文一并脱敏）"
+        },
+        {
+          "name": "includeSensitive",
+          "kind": "boolean",
+          "required": false,
+          "hint": "true=用户显式命令保留敏感信息（调试）；默认 false 全部脱敏"
+        },
+        {
+          "name": "sensitiveExcerpt",
+          "kind": "string",
+          "required": false,
+          "hint": "用户显式提供的敏感片段；仅 includeSensitive=true 时收录进「敏感附件」段"
+        },
+        {
+          "name": "draft",
+          "kind": "object",
+          "required": false,
+          "hint": "approve 必填：prepare 返回并经用户审阅的 draft 对象（原样或修订版）"
+        },
+        {
+          "name": "approved",
+          "kind": "boolean",
+          "required": false,
+          "hint": "approve 必填且必须为 true（用户审阅通过）；否则拒绝储存"
+        },
+        {
+          "name": "reviewComment",
+          "kind": "string",
+          "required": false,
+          "hint": "审阅意见（可选，随文档入库）"
+        }
+      ],
+      "outputs": [
+        "draft",
+        "redactionSummary",
+        "stored",
+        "path",
+        "docId"
+      ],
+      "dependsOn": [],
+      "degradation": "无外部依赖永远可用；输入非法返回 INVALID_INPUT 结构化错误，任何阶段不储存非法文档；approve 未经 approved=true 直接拒绝",
+      "docPath": "skills/shared/submit_feedback.md",
+      "usage": "两阶段反馈：stage=prepare 生成默认脱敏的反馈草稿（绝不入库）→ 用户审阅 → stage=approve 且 approved=true 才存储至 .nangying-feedback/，供 loop engineering 监控"
+    },
+    {
       "skillId": "register_teacher_avatar",
       "name": "教师数字分身注册",
       "type": "specialized",

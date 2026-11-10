@@ -35,7 +35,7 @@
 
 ```
 ├── core/                  # 领域核心（零 Node API）：nlp 解析与 MRS 候选/LLM 术语过滤、graph 星图与融合比对、course、qa、i18n、decode 契约
-├── skills/                # 技能契约（Markdown：shared 22 + specialized 7，各含机器可读「输入声明」段）
+├── skills/                # 技能契约（Markdown：shared 23 + specialized 7，各含机器可读「输入声明」段）
 ├── adapters/              # 适配层（允许 Node API）
 │   ├── core/              # 基类/执行器/本地适配器/解码器（OCR、PPTX、缓存、.env LLM 回退）
 │   └── dsh|kimi|trae|codex|workbuddy|qoder/  # 各平台适配器 + profile.json 能力档案

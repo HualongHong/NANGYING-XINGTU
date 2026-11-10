@@ -1,0 +1,7 @@
+{
+  "$schema": "nangying-starmap/loop-thresholds@1",
+  "minFeedbackBeforeGating": 3,
+  "maxUnconsumedIssues": 8,
+  "maxSensitiveAttachedRatio": 0.25,
+  "stalenessWarnDays": 30
+}

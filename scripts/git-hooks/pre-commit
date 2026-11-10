@@ -16,7 +16,7 @@ done
 
 # 2) 暂存内容扫描：疑似真实 API key（sk-/MiniMax/DeepSeek 长 token 形态）
 #    只报形态，不打印内容。
-staged=$(git diff --cached -U0 | grep '^+' | grep -v '^\+\+\+' || true)
+staged=$(git diff --cached -U0 | grep '^+' | grep -v '^+++' || true)
 if echo "$staged" | grep -qE '(sk-[A-Za-z0-9]{20,}|[A-Za-z0-9_-]{32,}\.)'; then
   echo "[pre-commit] 暂存内容疑似包含真实 API key 形态（sk-… 或 32+ 位 token），请检查" >&2
   fail=1

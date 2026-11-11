@@ -1,6 +1,6 @@
 # 技能速查表
 
-共 30 个技能：共享型 23 个（平台无关）+ 特化型 7 个（可降级）。
+共 31 个技能：共享型 24 个（平台无关）+ 特化型 7 个（可降级）。
 
 ## 共享型技能
 
@@ -16,7 +16,20 @@
 | generate_personalized_feedback | 个性化反馈 | 学习行为+测验 → 反馈与建议 | 通用模板反馈 |
 | export_course_package | 课程包导出 | 课程资产 → SCORM/IMS/字幕/多语包/docx/pptx/pdf/xlsx | 仅 Markdown+字幕 zip |
 | manage_course_assets | 课程资产管理 | 操作指令 → 资产登记、版本、元数据 | 本地文件系统登记 |
+| fuse_knowledge_graphs | 知识图谱融合 | 多图谱+来源权重 → 融合图、归并报告 | LLM 对齐失败时 conflicts 如实返回 |
+| diff_knowledge_graphs | 知识图谱比对 | 两图谱 → 实体/边差集与相似度 | 纯结构 diff，无 LLM 依赖 |
+| manage_async_tasks | 异步任务管理 | query/list/cancel/cleanup → 作业状态、进度、结果 | 内存注册表直查 |
+| describe_capabilities | 能力自述 | 可选 skillId → 真实入参契约（真名/别名/必填/上游/降级） | 按注册表静态输出 |
+| generate_assessment | 图谱命题 | 图谱 → 题干/题型/难度/Bloom/答案/解析 | 模板题兜底 |
+| audit_consistency | 一致性核查 | ≥2 材料 → 日期/学时/口径/覆盖矛盾清单 | 纯文本交叉比对 |
+| polish_teaching_text | 文本润色 | 教学文本 → 去机器味改写（术语保护） | 无 LLM 返回规则级建议 |
+| sync_bilingual | 双语同步 | 中文锚+译文 → 逐段对齐/术语锁定/一致性 | 规则对齐兜底 |
+| qa_media | 媒体验收 | 视频/字幕 → 场景切换/静音/时间轴门禁报告 | 无 ffmpeg 时仅字幕静态检查 |
+| render_preview | 版面预览 | docx/pptx/pdf/xlsx → 大纲/要点/扫描件判定 | 魔数识别+文本层降级 |
+| build_industry_graph | 产业图谱 | 产业材料 → 六类本体五类关系产业图谱 | 启发式抽取 |
+| link_knowledge_industry | 产教关联 | 课程图+产业图 → 供需缺口/覆盖冗余报告 | 词面匹配兜底 |
 | submit_feedback | 反馈协调 | 问题/满意执行（含未用插件）→ 脱敏草稿 → 审阅门后入库 | 输入非法不储存；approve 未通过拒绝 |
+| settings_card | 设置卡片 | render 卡片 → 用户填写 → apply 入库（密钥永不回显） | 输入非法拒写入；未识别平台走保守政策 |
 
 ## 特化型技能
 

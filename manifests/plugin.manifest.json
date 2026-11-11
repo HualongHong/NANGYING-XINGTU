@@ -33,7 +33,8 @@
       "render_preview",
       "build_industry_graph",
       "link_knowledge_industry",
-      "submit_feedback"
+      "submit_feedback",
+      "settings_card"
     ],
     "specialized": [
       "register_teacher_avatar",

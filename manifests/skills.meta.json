@@ -470,6 +470,25 @@
       "dependsOn": [],
       "degradation": "无外部依赖永远可用；输入非法返回 INVALID_INPUT 结构化错误，任何阶段不储存非法文档；approve 未经 approved=true 直接拒绝",
       "docPath": "skills/shared/submit_feedback.md"
+    },
+    "settings_card": {
+      "skillId": "settings_card",
+      "name": "设置卡片",
+      "type": "shared",
+      "description": "用户设置卡片：render 按平台政策渲染声明式卡片（解码器 API key 与连接端口字段，secret 字段标记密码输入且永不回显）；apply 校验并写入 settings.json（644）/secrets.json（0600），密钥只报后 4 位指纹；status 脱敏回显当前配置。六 agent 平台（MCP stdio + 宿主注入 LLM）端口自动隐藏，local 自托管开放端口设置。",
+      "outputs": [
+        "card",
+        "applied",
+        "secret",
+        "port",
+        "provider",
+        "model",
+        "endpoint",
+        "apiKey"
+      ],
+      "dependsOn": [],
+      "degradation": "无外部依赖永远可用；输入非法返回 INVALID_INPUT 结构化错误（provider 非法/endpoint 非 URL/port 越界/stdio 平台拒收 port）；密钥任何阶段不回显明文",
+      "docPath": "skills/shared/settings_card.md"
     }
   }
 }

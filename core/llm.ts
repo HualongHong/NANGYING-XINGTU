@@ -36,4 +36,6 @@ export interface SkillContext {
   decoder?: import('./decode/documentDecoder.js').DocumentDecoder;
   /** 可选：LLM 批并发/预算/进度配置（大材料术语过滤等批场景） */
   llmBatch?: LlmBatchConfig;
+  /** 可选：宿主平台标识（适配器注入；settings_card 依此匹配平台政策） */
+  platform?: string;
 }

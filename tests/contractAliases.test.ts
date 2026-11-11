@@ -119,7 +119,7 @@ describe('describe_capabilities（技能 #21：能力自述，P1-2 可发现性�
         inputs: Array<{ name: string; kind: string; required: boolean; aliases?: string[]; hint?: string; producer?: string[] }>;
       }>;
     };
-    expect(data.count).toBe(30);
+    expect(data.count).toBe(31);
     const design = data.skills.find((s) => s.skillId === 'design_course_structure')!;
     expect(design.required).toEqual(['graph', 'objectives']);
     const graphInput = design.inputs.find((i) => i.name === 'graph')!;

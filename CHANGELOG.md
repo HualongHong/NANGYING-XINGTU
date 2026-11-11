@@ -4,10 +4,19 @@
 
 ## [Unreleased]（1.8.0 预备）
 
+R17 迭代：设置卡片——`settings_card` 技能（第 24 个共享技能）按平台政策渲染声明式设置卡片，用户可设置解码器 API key 与连接端口；密钥写入 secrets.json（0600）永不回显，端口仅 http-capable 平台开放。
+
+### Added
+
+- **`settings_card` 设置卡片（第 24 个共享技能）**：三阶段——`render` 按平台政策渲染声明式卡片（sections/fields/kind/required/default/policy，`apiKey` 字段 `secret: true` 要求宿主密码输入且不落日志）；`apply` 校验并写入 settings.json（644）/secrets.json（0600），返回只含后 4 位指纹；`status` 脱敏回显当前配置。平台政策矩阵 `core/config/settingsCard.ts`（源自各平台 profile.json 事实）：六 agent 平台（dsh/kimi/trae/codex/workbuddy/qoder）经 MCP stdio 接入 → 端口区块隐藏（hiddenReason 注明），宿主注入 LLM → apiKey 可留空；local 自托管 → 端口可见（默认 7379，1-65535）；未识别平台走 generic 保守政策。`apply` 硬校验：provider 枚举/endpoint http(s) URL/port 越界/stdio 平台拒收 port 一律 INVALID_INPUT 拒写入；`SkillContext` 新增 `platform` 由 `registerSharedSkills` 从适配器 profile 注入。
+- **HTTP 端口联动**：`server/http.ts` 直接运行入口端口优先级 `PORT > settings.json extra.port > 7379`——卡片设置的端口重启即生效。
+- **技能速查表补全**：`docs/SKILLS.md` 补齐此前缺失的全部共享技能行（fuse/diff/manage_async_tasks/describe_capabilities/assessment/audit/polish/sync_bilingual/qa_media/render_preview/industry/link）并加入 settings_card 行。
+
 R14 迭代：handout-docx 表格格子级 API。测试 438 → 441。
 迁移整理迭代：OCR 语言包迁至 `tessdata/`（兼容仓库根旧部署）；开发过程文档（DEV_LOG/HANDOVER/feedback/scratch）归集 `docs/dev/`（不入库）。测试保持 441。
 R15 迭代：六平台适配器——TRAE 更名写实、WorkBuddy/QoDER 新增、kimi 声明 KimiWORK 覆盖，平台接线归一化为声明式工厂。测试 441 → 442。
 R16 迭代：反馈闭环——`submit_feedback` 技能（默认脱敏 + 审阅门 + 显式敏感通道）+ 编程端 loop engineering（指标/门槛/CI 强制）。测试 442 → 464。
+R17 迭代：设置卡片——`settings_card` 技能按平台政策渲染 API key/连接端口设置卡片（六 agent 平台端口自动隐藏、密钥永不回显）。测试 464 → 471。
 文档收敛迭代：`docs/` 只留用户文档（SKILLS/USAGE/RECIPES）；开发过程文档（ARCHITECTURE/PLAN/VERIFICATION_CASE/LOOP_ENGINEERING 与原 `docs/dev/*`）归集本地 `dev-docs/`（gitignored，不入库）。测试保持 464。
 
 ### Added

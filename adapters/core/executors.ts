@@ -43,6 +43,13 @@ import { parseSrt, auditSubtitleTimeline, mergeEngineFindings, finalizeReport } 
 import { buildIndustryGraph } from '../../core/graph/buildIndustryGraph.js';
 import { linkKnowledgeIndustry } from '../../core/graph/linkKnowledgeIndustry.js';
 import { buildFeedbackDraft, buildAcceptedDocument } from '../../core/feedback/feedback.js';
+import {
+  resolvePolicy,
+  renderSettingsCard,
+  validateApplySettings,
+  secretFingerprint,
+  DEFAULT_HTTP_PORT,
+} from '../../core/config/settingsCard.js';
 import type { AdapterBase } from './adapter.base.js';
 import registry from '../../manifests/skills.registry.json' with { type: 'json' };
 
@@ -78,6 +85,7 @@ const IMPLEMENTED_SKILLS = [
   'build_industry_graph',
   'link_knowledge_industry',
   'submit_feedback',
+  'settings_card',
 ] as const;
 
 type ImplementedSkillId = (typeof IMPLEMENTED_SKILLS)[number];
@@ -1236,6 +1244,92 @@ const rawExecutors: Record<
       },
     };
   },
+  // 设置卡片：render 按平台政策渲染卡片；apply 校验后写入 settings/secrets（密钥永不回显）；status 脱敏回显
+  settings_card: async (inputs, ctx) => {
+    const stage =
+      inputs.stage === 'apply' ? 'apply' : inputs.stage === 'status' ? 'status' : 'render';
+    const policy = resolvePolicy(inputs.platform ?? ctx.platform);
+    if (stage === 'render') {
+      return {
+        skillId: 'settings_card',
+        level: 'full' as const,
+        degradationNote: '',
+        data: {
+          card: renderSettingsCard(policy),
+          next: '按卡片收集用户输入后，以 stage="apply" 提交 settings 对象；status 查看当前配置（脱敏）',
+        },
+      };
+    }
+    const configStore = await import('./configStore.js');
+    if (stage === 'status') {
+      const config = configStore.readConfig();
+      const apiKey = configStore.readApiKey();
+      return {
+        skillId: 'settings_card',
+        level: 'full' as const,
+        degradationNote: '',
+        data: {
+          platform: policy.platform,
+          provider: config?.provider ?? '（未配置）',
+          model: config?.model ?? '（默认）',
+          endpoint: config?.endpoint ?? '（默认）',
+          port: config?.extra?.port ?? String(DEFAULT_HTTP_PORT),
+          apiKey: apiKey
+            ? { configured: true, fingerprint: secretFingerprint(apiKey) }
+            : { configured: false },
+          paths: { settings: configStore.settingsPath(), secrets: configStore.secretsPath() },
+          policy: policy.note,
+        },
+      };
+    }
+    const v = validateApplySettings(inputs.settings, policy);
+    if ('error' in v) {
+      return {
+        skillId: 'settings_card',
+        level: 'unavailable' as const,
+        errorCode: 'INVALID_INPUT' as const,
+        degradationNote: `设置校验失败：${v.error}`,
+        example: '{ "stage": "apply", "settings": { "provider": "local-ocr" } }',
+      };
+    }
+    const s = v.value;
+    const prev = configStore.readConfig();
+    const next: import('../../core/decode/documentDecoder.js').DecoderConfig = {
+      provider: s.provider,
+    };
+    const model = s.model ?? prev?.model;
+    if (model !== undefined) next.model = model;
+    const endpoint = s.endpoint ?? prev?.endpoint;
+    if (endpoint !== undefined) next.endpoint = endpoint;
+    if (prev?.timeoutMs !== undefined) next.timeoutMs = prev.timeoutMs;
+    next.extra = { ...prev?.extra, ...(s.port !== undefined ? { port: String(s.port) } : {}) };
+    configStore.writeConfig(next);
+    const changes: string[] = ['解码器配置已写入 settings.json（644）'];
+    let secret: { stored: boolean; cleared?: boolean; fingerprint?: string } | undefined;
+    if (s.apiKey !== undefined) {
+      if (s.apiKey === '') {
+        configStore.clearApiKey();
+        secret = { stored: false, cleared: true };
+        changes.push('密钥已清除（secrets.json 置空）');
+      } else {
+        configStore.writeApiKey(s.apiKey);
+        secret = { stored: true, fingerprint: secretFingerprint(s.apiKey) };
+        changes.push('密钥已写入 secrets.json（0600，不回显）');
+      }
+    }
+    return {
+      skillId: 'settings_card',
+      level: 'full' as const,
+      degradationNote: '',
+      data: {
+        applied: changes,
+        secret,
+        port: s.port ?? (prev?.extra?.port !== undefined ? Number(prev.extra.port) : DEFAULT_HTTP_PORT),
+        paths: { settings: configStore.settingsPath(), secrets: configStore.secretsPath() },
+        next: '自托管 HTTP 模式重启 server 后端口生效；stage="status" 查看配置',
+      },
+    };
+  },
   describe_capabilities: async (inputs) => {
     const { skillId } = inputs as { skillId?: string };
     const all = (registry as { skills: SkillDescriptor[] }).skills;
@@ -1358,6 +1452,8 @@ const executors: Record<
   ], rawExecutors.manage_async_tasks),
   // 规格留空：stage 条件必填（prepare 要 kind/summary；approve 要 draft/approved），raw 守卫结构化报错
   submit_feedback: guarded('submit_feedback', [], rawExecutors.submit_feedback),
+  // 规格留空：stage 条件必填（render/status 无必填；apply 要 settings 对象），raw 守卫结构化报错
+  settings_card: guarded('settings_card', [], rawExecutors.settings_card),
   describe_capabilities: guarded('describe_capabilities', [], rawExecutors.describe_capabilities),
   generate_assessment: guarded('generate_assessment', [
     { name: 'graph', kind: 'object', hint: 'extract_knowledge_graph 或 fuse_knowledge_graphs 的输出（含 entities 数组）' },
@@ -1398,6 +1494,8 @@ export function registerSharedSkills(
   if (opts.llm) baseCtx.llm = opts.llm;
   if (opts.decoder) baseCtx.decoder = opts.decoder;
   if (opts.llmBatch) baseCtx.llmBatch = opts.llmBatch;
+  // 宿主平台标识注入：settings_card 依此匹配平台政策（端口显隐/LLM 注入说明）
+  baseCtx.platform = adapter.getProfile().platform;
   for (const skillId of IMPLEMENTED_SKILLS) {
     adapter.registerSkill(descriptorOf(skillId), (inputs, _ctx, invokeOpts) =>
       executors[skillId](inputs, {

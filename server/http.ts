@@ -43,10 +43,13 @@ export function startHttpServer(adapter: AdapterBase, port = 0, host = '127.0.0.
 }
 
 // 直接运行入口：node dist/server/http.js
+// 端口优先级：环境变量 PORT > settings_card 写入的 settings.json extra.port > 默认 7379
 const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMain) {
   const { LocalAdapter } = await import('../adapters/core/local.adapter.js');
-  const port = Number(process.env.PORT ?? 7379);
+  const { readConfig } = await import('../adapters/core/configStore.js');
+  const storedPort = readConfig()?.extra?.port;
+  const port = Number(process.env.PORT ?? storedPort ?? 7379);
   void startHttpServer(new LocalAdapter({ envLlm: process.env.NANGYING_MCP_LLM === '1' }), port).then((s) => {
     const addr = s.address();
     console.log(`nangying-starmap HTTP JSON-RPC 已启动：http://127.0.0.1:${typeof addr === 'object' && addr ? addr.port : port}/rpc`);

@@ -41,7 +41,7 @@
 │   └── dsh|kimi|trae|codex|workbuddy|qoder/  # 各平台适配器 + profile.json 能力档案
 ├── server/                # MCP（stdio）与 HTTP JSON-RPC 最小协议层
 ├── manifests/             # plugin.manifest.json、skills.registry.json（gen-registry 生成）、skills.meta.json
-├── docs/                  # 架构、技能速查、接入指南、规划
+├── docs/                  # 用户文档：技能速查、接入指南、工作流配方（开发过程文档一律不入库）
 └── scripts/               # validate.mjs 三方一致性自检、gen-registry.mjs 注册表生成、ci.mjs
 ```
 
@@ -54,4 +54,4 @@ pnpm run ci                 # 校验 + 类型检查 + 测试（441 用例）
 pnpm config                 # 解码器/LLM 配置向导
 ```
 
-更多见 [CHANGELOG.md](CHANGELOG.md)、[docs/PLAN.md](docs/PLAN.md)、[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)、[docs/SKILLS.md](docs/SKILLS.md)、[docs/USAGE.md](docs/USAGE.md)。
+更多见 [CHANGELOG.md](CHANGELOG.md)、[docs/SKILLS.md](docs/SKILLS.md)、[docs/USAGE.md](docs/USAGE.md)、[docs/RECIPES.md](docs/RECIPES.md)。

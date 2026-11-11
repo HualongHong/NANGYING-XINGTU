@@ -6,7 +6,7 @@ set -u
 fail=0
 
 # 1) 严禁跟踪的文件名模式
-forbidden='^\.env(\.|$)|\.traineddata$|^testfiles/|^tessdata/|^\.nangying-starmap/|^docs/dev/'
+forbidden='^\.env(\.|$)|\.traineddata$|^testfiles/|^tessdata/|^\.nangying-starmap/|^dev-docs/'
 for f in $(git diff --cached --name-only --diff-filter=ACM); do
   if echo "$f" | grep -qE "$forbidden"; then
     echo "[pre-commit] 拒绝提交受保护文件: $f" >&2

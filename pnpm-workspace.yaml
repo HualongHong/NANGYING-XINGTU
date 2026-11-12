@@ -2,3 +2,5 @@ allowBuilds:
   esbuild: set this to true or false
   sharp: set this to true or false
   tesseract.js: set this to true or false
+patchedDependencies:
+  sciverse@1.0.1: patches/sciverse@1.0.1.patch

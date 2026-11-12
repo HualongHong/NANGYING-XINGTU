@@ -1,0 +1,9 @@
+diff --git a/dist/index.js b/dist/index.js
+index 69f7f263b4cd4a83a3e1645ff6b2fc2b18cbfb48..2ff87f968e445ad161340b65df855f3772b9d4a5 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -1,2 +1,2 @@
+-export { AgentToolsClient } from "./client";
+-export { TOOLS_VERSION, OPENAI_TOOLS, ANTHROPIC_TOOLS } from "./tools";
++export { AgentToolsClient } from "./client.js";
++export { TOOLS_VERSION, OPENAI_TOOLS, ANTHROPIC_TOOLS } from "./tools.js";

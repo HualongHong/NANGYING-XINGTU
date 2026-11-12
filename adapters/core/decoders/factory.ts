@@ -5,6 +5,7 @@
 import type { DecoderConfig, DocumentDecoder } from '../../../core/decode/documentDecoder.js';
 import { createKimiDecoder } from './kimiDecoder.js';
 import { createOpenAiVisionDecoder } from './openAiVisionDecoder.js';
+import { createMineruDecoder } from '../../odlab/mineru.js';
 
 export interface FactoryOptions {
   fetchImpl?: typeof fetch;
@@ -24,10 +25,12 @@ export function createDecoder(
     case 'openai-vision':
     case 'vision':
       return createOpenAiVisionDecoder({ config, keyProvider, fetchImpl: opts.fetchImpl });
+    case 'mineru':
+      return createMineruDecoder({ config, keyProvider, fetchImpl: opts.fetchImpl });
     default:
-      throw new Error(`未知的解码器供应商："${config.provider}"（内置：kimi、openai）`);
+      throw new Error(`未知的解码器供应商："${config.provider}"（内置：kimi、openai、mineru）`);
   }
 }
 
-export { createKimiDecoder, createOpenAiVisionDecoder };
+export { createKimiDecoder, createOpenAiVisionDecoder, createMineruDecoder };
 export { redact } from './shared.js';

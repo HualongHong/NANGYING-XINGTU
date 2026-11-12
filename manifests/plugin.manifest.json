@@ -34,7 +34,8 @@
       "build_industry_graph",
       "link_knowledge_industry",
       "submit_feedback",
-      "settings_card"
+      "settings_card",
+      "enrich_knowledge_evidence"
     ],
     "specialized": [
       "register_teacher_avatar",

@@ -17,6 +17,20 @@ R14 迭代：handout-docx 表格格子级 API。测试 438 → 441。
 R15 迭代：六平台适配器——TRAE 更名写实、WorkBuddy/QoDER 新增、kimi 声明 KimiWORK 覆盖，平台接线归一化为声明式工厂。测试 441 → 442。
 R16 迭代：反馈闭环——`submit_feedback` 技能（默认脱敏 + 审阅门 + 显式敏感通道）+ 编程端 loop engineering（指标/门槛/CI 强制）。测试 442 → 464。
 R17 迭代：设置卡片——`settings_card` 技能按平台政策渲染 API key/连接端口设置卡片（六 agent 平台端口自动隐藏、密钥永不回显）。测试 464 → 471。
+R18 迭代：OpenDataLab 体系对接——`adapters/odlab/` 对接层（MinerU 双档解析 + SciVerse 学术证据技能 + DianShi/数据集预留位），新共享技能 `enrich_knowledge_evidence`。测试 471 → 493。
+
+### Added
+
+- **OpenDataLab 体系对接层 `adapters/odlab/`**：统一签名（keyProvider 惰性取钥 + fetchImpl/SDK 可注入 + redact 脱敏 + 超时），平台矩阵文档标注 Tier——MinerU/SciVerse 实装，DianShi（化学反应检索与逆合成 RAG，按账号权限申请）与 OpenDataLab 数据集为预留接入点，Sci-Evo 为观察位。
+- **MinerU 云端解析解码器**（`odlab/mineru.ts`，工厂注册 `provider="mineru"`）：双模式——免 key 免费档（`/api/v1/agent/parse/file`，≤10MB/20 页仅 Markdown，超限拒绝并提示）；Token 精准档（`/api/v4/extract/task` 异步上传→轮询→zip，内置 zip 中央目录解析取 full.md）。走 `parse_course_material` 解码阶梯③号位，平台失败自动回落本地链路（独立性）。
+- **学术证据增强 `enrich_knowledge_evidence`**（第 25 个共享技能）：graph（取 kind=concept 节点的 label）或 queries 二选一 → SciVerse 逐实体检索 → 归一化 `academicEvidence` 不可变合并回图谱（agentic=语义证据段 / meta=venue/year/doi 书目字段）；topK 1-10、查询数上限 20（平台额度保护）。平台不可用（无 Token/SDK 未装/限流）→ `degraded` 原样回传输入——主流程不中断，证据可后补。
+- **官方 `sciverse` npm SDK 接入**（optionalDependencies + 动态 import，缺装不阻断）：上游 dist 缺 ESM 扩展名致 Node 无法导入，经 `pnpm.patchedDependencies` 补丁修复（`patches/sciverse@1.0.1.patch` 入库，新装自动生效）；密钥显式注入（SDK 推荐的 vault 模式），`.env` 的 `SCIVERSE_API_TOKEN` 为原生调试通道。
+- **命名多密钥**：`secrets.json` 支持 `{ apiKey, sciverseApiKey }`（`readApiKey/writeApiKey/clearApiKey` 加 name 参数，缺省 'apiKey' 与旧文件兼容）；settings_card 新增"学术证据"区块（sciverseApiKey 可单独设置、status 脱敏回显），provider 枚举加 `mineru`；`.env.example` 加 `MINERU_API_TOKEN`/`SCIVERSE_API_TOKEN` 空占位。
+
+### Changed
+
+- **平台适配器目录判定**：validate.mjs 与 adapterProfile 三方一致测试改为"含 profile.json 才算平台适配器"——`adapters/odlab/` 对接层不再被误判为平台。
+- **文档**：README（32 技能=25+7、目录树加 odlab、解码供应商加 MinerU）、docs/SKILLS.md（补 enrich 行）、docs/USAGE.md（供应商/命名密钥/学术证据）、docs/RECIPES.md 配方 1 加可选证据分支、dev-docs/ARCHITECTURE.md 基线。
 文档收敛迭代：`docs/` 只留用户文档（SKILLS/USAGE/RECIPES）；开发过程文档（ARCHITECTURE/PLAN/VERIFICATION_CASE/LOOP_ENGINEERING 与原 `docs/dev/*`）归集本地 `dev-docs/`（gitignored，不入库）。测试保持 464。
 
 ### Added

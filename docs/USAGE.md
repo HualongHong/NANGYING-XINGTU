@@ -112,17 +112,22 @@ curl -X POST http://127.0.0.1:7379/rpc \
 
 二进制文档（PDF/PPTX）的解码双重供给：宿主注入 `ctx.decoder` 优先；否则使用本机配置的内置供应商解码器。
 
+内置供应商：`kimi`（Moonshot 文件解析）、`openai`（OpenAI 兼容视觉）、`mineru`（OpenDataLab 高精度解析——表格→HTML、公式→LaTeX；**免 key 免费档** ≤10MB/20 页仅 Markdown，配 `MINERU_API_TOKEN`（mineru.net 控制台申请）走精准档异步任务，每日免费高优额度以官网为准）。
+
 ```bash
 pnpm build
 pnpm config    # 交互向导（不回显 key）
 # 或参数模式（CI 友好）：
 pnpm config --provider kimi --model moonshot-v1-8k --endpoint https://api.moonshot.cn --api-key-env MOONSHOT_KEY
+pnpm config --provider mineru   # 免 key：免费档；--api-key 传入则精准档
 pnpm config --show    # 显示当前配置（脱敏，不回显 key）
 pnpm config --clear   # 清除密钥
 ```
 
+学术证据（可选）：`enrich_knowledge_evidence` 技能经 SciVerse（OpenDataLab 学术基座）为图谱逐概念挂学术引用；Token 用 settings_card 的学术证据区块写入命名密钥 `sciverseApiKey`，或 `.env` 的 `SCIVERSE_API_TOKEN` 调试通道。无 Token 时技能返回 `degraded` 且图谱不动，主流程不中断。
+
 **密钥安全策略**（key 生命周期）：
-- 存放：配置目录 `~/.nangying-starmap/`（可用 env `NANGYING_CONFIG_DIR` 覆盖）；`settings.json` 只存非敏感配置（644），`secrets.json` 只存 `{ "apiKey": … }`（600；Windows 下 chmod 尽力而为，建议再以文件系统 ACL 收紧目录访问）；
+- 存放：配置目录 `~/.nangying-starmap/`（可用 env `NANGYING_CONFIG_DIR` 覆盖）；`settings.json` 只存非敏感配置（644），`secrets.json` 存命名密钥映射 `{ "apiKey": …, "sciverseApiKey": … }`（600；缺省名 `apiKey` 与旧文件兼容；Windows 下 chmod 尽力而为，建议再以文件系统 ACL 收紧目录访问）；
 - 写入：`writeConfig` 入参校验拒绝任何字段名含 key/token/secret/password 的配置；向导与参数模式均不回显 key；
 - 读取：解码器工厂以 `keyProvider: () => readApiKey()` 在**请求时刻**惰性读取，不缓存、不打印；
 - 使用：密钥只出现在请求的 `Authorization` 头中；

@@ -15,6 +15,7 @@
 1. `parse_course_material` × N（每个材料一次）：`{ materialFile: "<路径>", options: { llmFilter: "auto" } }` → 章节/段落/候选池 + `llmFilterReport`。产物衔接：输出的 `knowledgePointCandidates`（全量候选池）要留给 fuse。
 2. `extract_knowledge_graph` × N：`{ structuredContent: "$parse_course_material" }` → 单元图谱（星图中枢 schema）。
 3. `fuse_knowledge_graphs`：`{ graphs: [N 个单元图谱], sources: [{id, weight}], pools: [N 个候选池] }` → 整门课融合图谱 + 归并报告（跨单元共享概念如"离心/标准曲线"在此归并）。
+3.5 `enrich_knowledge_evidence`（可选，SciVerse 学术证据）：`{ graph: "$fuse", topK: 3, mode: "agentic" }` → 图谱挂 `academicEvidence`（逐概念学术引用）。SciVerse 不可用（无 Token/限流）时返回 `degraded` 且图谱原样——跳过不影响后续步骤，证据可后补重跑。
 4. `design_course_structure`：`{ graph: "$fuse", objectives: { audience, totalMinutes } }` → 模块/课时/环节。
 5. `generate_teaching_script`：`{ structure: "$design" }` → 分镜/口播/字幕三稿。
 6. `translate_multilingual`（可选，需 LLM 才有真译文）：`{ script: "$generate", targetLanguages: ["zh","en"], glossary: <可选术语库> }` → 多语同构脚本。

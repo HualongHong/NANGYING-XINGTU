@@ -18,7 +18,7 @@ describe('MCP handleMessage', () => {
     expect(result.serverInfo.name).toBe('nangying-starmap');
   });
 
-  it('tools/list 列出全部 31 个已实现技能', async () => {
+  it('tools/list 列出全部 32 个已实现技能', async () => {
     const resp = await handleMessage(adapter, {
       jsonrpc: '2.0',
       id: 2,
@@ -57,6 +57,7 @@ describe('MCP handleMessage', () => {
       'link_knowledge_industry',
       'submit_feedback',
       'settings_card',
+      'enrich_knowledge_evidence',
     ]);
   });
 

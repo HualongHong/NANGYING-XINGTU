@@ -49,10 +49,10 @@ for (const skill of registry.skills) {
   }
 }
 
-// (c) adapters 目录一致
+// (c) adapters 目录一致（平台适配器 = 含 profile.json 的目录；core/odlab 等非平台子目录不参与）
 const manifestAdapters = [...manifest.adapters].sort();
 const dirAdapters = readdirSync(join(root, 'adapters'), { withFileTypes: true })
-  .filter((d) => d.isDirectory() && d.name !== 'core')
+  .filter((d) => d.isDirectory() && existsSync(join(root, 'adapters', d.name, 'profile.json')))
   .map((d) => d.name)
   .sort();
 const onlyInManifest = manifestAdapters.filter((a) => !dirAdapters.includes(a));

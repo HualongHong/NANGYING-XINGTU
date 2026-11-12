@@ -489,6 +489,21 @@
       "dependsOn": [],
       "degradation": "无外部依赖永远可用；输入非法返回 INVALID_INPUT 结构化错误（provider 非法/endpoint 非 URL/port 越界/stdio 平台拒收 port）；密钥任何阶段不回显明文",
       "docPath": "skills/shared/settings_card.md"
+    },
+    "enrich_knowledge_evidence": {
+      "skillId": "enrich_knowledge_evidence",
+      "name": "学术证据增强",
+      "type": "shared",
+      "description": "挂接式学术证据增强：graph（或 queries）经 SciVerse（OpenDataLab 学术基座）逐实体检索学术引用，归一化 references 合并为可回图谱的 academicEvidence（agentic=语义证据段 / meta=书目字段）。平台不可用（无 Token/SDK/限流）返回 degraded 且原图谱不动——主流程不中断，证据可后补。",
+      "outputs": [
+        "graph",
+        "academicEvidence",
+        "stats",
+        "platformNote"
+      ],
+      "dependsOn": [],
+      "degradation": "无 SciVerse 时 degraded 原样回传输入+空证据+原因说明；graph/queries 非法输入返回 INVALID_INPUT；密钥永不回显",
+      "docPath": "skills/shared/enrich_knowledge_evidence.md"
     }
   }
 }

@@ -175,4 +175,53 @@ describe('R17 设置卡片（settings_card）', () => {
     expect((r.data as { port: number }).port).toBe(9000);
     expect(JSON.parse(readFileSync(join(dir, 'settings.json'), 'utf8')).extra.port).toBe('9000');
   });
+
+  it('provider 枚举含 mineru；render 卡片带学术证据（SciVerse）区块', async () => {
+    const adapter = new LocalAdapter();
+    const r = await adapter.invokeSkill('settings_card', { inputs: { stage: 'render', platform: 'local' } });
+    const d = r.data as CardData;
+    const decoder = d.card.sections.find((s) => s.id === 'decoder')!;
+    const provider = decoder.fields.find((f) => f.name === 'provider')!;
+    expect(JSON.stringify(provider)).toContain('mineru');
+    const academic = d.card.sections.find((s) => s.id === 'academic')!;
+    expect(academic.visible).toBe(true);
+    const sv = academic.fields.find((f) => f.name === 'sciverseApiKey')!;
+    expect(sv.secret).toBe(true);
+    expect(sv.kind).toBe('secret');
+    // mineru provider 可应用
+    const apply = await adapter.invokeSkill('settings_card', {
+      inputs: { stage: 'apply', platform: 'local', settings: { provider: 'mineru' } },
+    });
+    expect(apply.level).toBe('full');
+    expect(JSON.parse(readFileSync(join(dir, 'settings.json'), 'utf8')).provider).toBe('mineru');
+  });
+
+  it('sciverseApiKey：可单独设置（不要求 provider），命名密钥存储、status 脱敏回显、空串清除', async () => {
+    const adapter = new LocalAdapter();
+    const apply = await adapter.invokeSkill('settings_card', {
+      inputs: { stage: 'apply', platform: 'local', settings: { sciverseApiKey: 'sv-user-token-9999' } },
+    });
+    expect(apply.level).toBe('full');
+    const applied = apply.data as { sciverse: { stored: boolean; fingerprint: string }; secret?: unknown };
+    expect(applied.sciverse.stored).toBe(true);
+    expect(applied.sciverse.fingerprint).toBe('…9999');
+    // 命名密钥落盘，与 apiKey 分离
+    const secretsRaw = readFileSync(join(dir, 'secrets.json'), 'utf8');
+    expect(secretsRaw).toContain('sciverseApiKey');
+    expect(JSON.parse(secretsRaw).apiKey).toBeUndefined();
+    // status 只报指纹
+    const status = await adapter.invokeSkill('settings_card', { inputs: { stage: 'status' } });
+    const s = status.data as { sciverse: { configured: boolean; fingerprint: string } };
+    expect(s.sciverse.configured).toBe(true);
+    expect(s.sciverse.fingerprint).toBe('…9999');
+    expect(JSON.stringify(status.data)).not.toContain('sv-user-token-9999');
+    // 空串清除
+    await adapter.invokeSkill('settings_card', {
+      inputs: { stage: 'apply', platform: 'local', settings: { sciverseApiKey: '' } },
+    });
+    const cleared = (await adapter.invokeSkill('settings_card', { inputs: { stage: 'status' } })).data as {
+      sciverse: { configured: boolean };
+    };
+    expect(cleared.sciverse.configured).toBe(false);
+  });
 });

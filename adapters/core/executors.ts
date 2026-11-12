@@ -50,6 +50,13 @@ import {
   secretFingerprint,
   DEFAULT_HTTP_PORT,
 } from '../../core/config/settingsCard.js';
+import {
+  planEvidenceQueries,
+  mergeEvidence,
+  evidenceStats,
+  MAX_EVIDENCE_QUERIES,
+  type EntityEvidence,
+} from '../../core/evidence/enrichEvidence.js';
 import type { AdapterBase } from './adapter.base.js';
 import registry from '../../manifests/skills.registry.json' with { type: 'json' };
 
@@ -86,6 +93,7 @@ const IMPLEMENTED_SKILLS = [
   'link_knowledge_industry',
   'submit_feedback',
   'settings_card',
+  'enrich_knowledge_evidence',
 ] as const;
 
 type ImplementedSkillId = (typeof IMPLEMENTED_SKILLS)[number];
@@ -1264,6 +1272,7 @@ const rawExecutors: Record<
     if (stage === 'status') {
       const config = configStore.readConfig();
       const apiKey = configStore.readApiKey();
+      const sciverseKey = configStore.readApiKey('sciverseApiKey');
       return {
         skillId: 'settings_card',
         level: 'full' as const,
@@ -1276,6 +1285,9 @@ const rawExecutors: Record<
           port: config?.extra?.port ?? String(DEFAULT_HTTP_PORT),
           apiKey: apiKey
             ? { configured: true, fingerprint: secretFingerprint(apiKey) }
+            : { configured: false },
+          sciverse: sciverseKey
+            ? { configured: true, fingerprint: secretFingerprint(sciverseKey) }
             : { configured: false },
           paths: { settings: configStore.settingsPath(), secrets: configStore.secretsPath() },
           policy: policy.note,
@@ -1294,17 +1306,20 @@ const rawExecutors: Record<
     }
     const s = v.value;
     const prev = configStore.readConfig();
-    const next: import('../../core/decode/documentDecoder.js').DecoderConfig = {
-      provider: s.provider,
-    };
-    const model = s.model ?? prev?.model;
-    if (model !== undefined) next.model = model;
-    const endpoint = s.endpoint ?? prev?.endpoint;
-    if (endpoint !== undefined) next.endpoint = endpoint;
-    if (prev?.timeoutMs !== undefined) next.timeoutMs = prev.timeoutMs;
-    next.extra = { ...prev?.extra, ...(s.port !== undefined ? { port: String(s.port) } : {}) };
-    configStore.writeConfig(next);
-    const changes: string[] = ['解码器配置已写入 settings.json（644）'];
+    const changes: string[] = [];
+    if (s.provider !== undefined) {
+      const next: import('../../core/decode/documentDecoder.js').DecoderConfig = {
+        provider: s.provider,
+      };
+      const model = s.model ?? prev?.model;
+      if (model !== undefined) next.model = model;
+      const endpoint = s.endpoint ?? prev?.endpoint;
+      if (endpoint !== undefined) next.endpoint = endpoint;
+      if (prev?.timeoutMs !== undefined) next.timeoutMs = prev.timeoutMs;
+      next.extra = { ...prev?.extra, ...(s.port !== undefined ? { port: String(s.port) } : {}) };
+      configStore.writeConfig(next);
+      changes.push('解码器配置已写入 settings.json（644）');
+    }
     let secret: { stored: boolean; cleared?: boolean; fingerprint?: string } | undefined;
     if (s.apiKey !== undefined) {
       if (s.apiKey === '') {
@@ -1317,6 +1332,18 @@ const rawExecutors: Record<
         changes.push('密钥已写入 secrets.json（0600，不回显）');
       }
     }
+    let sciverse: { stored: boolean; cleared?: boolean; fingerprint?: string } | undefined;
+    if (s.sciverseApiKey !== undefined) {
+      if (s.sciverseApiKey === '') {
+        configStore.clearApiKey('sciverseApiKey');
+        sciverse = { stored: false, cleared: true };
+        changes.push('SciVerse Token 已清除');
+      } else {
+        configStore.writeApiKey(s.sciverseApiKey, 'sciverseApiKey');
+        sciverse = { stored: true, fingerprint: secretFingerprint(s.sciverseApiKey) };
+        changes.push('SciVerse Token 已写入 secrets.json 命名密钥 sciverseApiKey（0600，不回显）');
+      }
+    }
     return {
       skillId: 'settings_card',
       level: 'full' as const,
@@ -1324,9 +1351,76 @@ const rawExecutors: Record<
       data: {
         applied: changes,
         secret,
+        sciverse,
         port: s.port ?? (prev?.extra?.port !== undefined ? Number(prev.extra.port) : DEFAULT_HTTP_PORT),
         paths: { settings: configStore.settingsPath(), secrets: configStore.secretsPath() },
         next: '自托管 HTTP 模式重启 server 后端口生效；stage="status" 查看配置',
+      },
+    };
+  },
+  // 学术证据增强：SciVerse 逐实体检索 → academicEvidence 合并回图谱；平台不可用 degraded 原样回传（独立性）
+  enrich_knowledge_evidence: async (inputs) => {
+    const plan = planEvidenceQueries(inputs);
+    if ('error' in plan) {
+      return {
+        skillId: 'enrich_knowledge_evidence',
+        level: 'unavailable' as const,
+        errorCode: 'INVALID_INPUT' as const,
+        degradationNote: `输入校验失败：${plan.error}`,
+        example: '{ "queries": ["知识图谱构建"] }',
+      };
+    }
+    const configStore = await import('./configStore.js');
+    const { loadProjectDotEnv } = await import('./dotenv.js');
+    loadProjectDotEnv();
+    const { createSciverseService } = await import('../odlab/sciverse.js');
+    const svc = await createSciverseService({
+      keyProvider: () => configStore.readApiKey('sciverseApiKey') ?? process.env.SCIVERSE_API_TOKEN,
+      baseUrl: configStore.readConfig()?.extra?.sciverseEndpoint,
+    });
+    const passthrough = inputs.graph ?? { queries: plan.queries.map((q) => q.query) };
+    if (!svc.ok) {
+      return {
+        skillId: 'enrich_knowledge_evidence',
+        level: 'degraded' as const,
+        degradationNote: `SciVerse 不可用：${svc.reason}`,
+        data: {
+          ...(typeof passthrough === 'object' && passthrough !== null ? passthrough : {}),
+          academicEvidence: [],
+          platformNote: `${svc.reason}；配置后重跑本技能即可补齐证据，不影响其余流程`,
+        },
+      };
+    }
+    const search =
+      plan.mode === 'meta'
+        ? (q: string) => svc.service.searchMetadata({ query: q, topK: plan.topK })
+        : (q: string) => svc.service.semanticSearch({ query: q, topK: plan.topK, mode: 'balanced' });
+    const evidences: EntityEvidence[] = [];
+    const failures: string[] = [];
+    for (const { entityId, query } of plan.queries) {
+      try {
+        evidences.push({ entityId, query, references: await search(query) });
+      } catch {
+        failures.push(query);
+        evidences.push({ entityId, query, references: [] });
+      }
+    }
+    const base = typeof inputs.graph === 'object' && inputs.graph !== null ? inputs.graph : {};
+    return {
+      skillId: 'enrich_knowledge_evidence',
+      level: failures.length > 0 ? ('degraded' as const) : ('full' as const),
+      degradationNote:
+        failures.length > 0
+          ? `部分实体检索失败（${failures.join('、')}）：平台限流或网络波动，重跑本技能可补齐`
+          : '',
+      data: {
+        ...mergeEvidence(base, evidences),
+        stats: evidenceStats(evidences),
+        mode: plan.mode,
+        ...(inputs.graph === undefined ? { queries: plan.queries.map((q) => q.query) } : {}),
+        ...(plan.queries.length >= MAX_EVIDENCE_QUERIES
+          ? { note: `查询实体数达上限 ${MAX_EVIDENCE_QUERIES}（平台额度保护），已截断` }
+          : {}),
       },
     };
   },
@@ -1454,6 +1548,8 @@ const executors: Record<
   submit_feedback: guarded('submit_feedback', [], rawExecutors.submit_feedback),
   // 规格留空：stage 条件必填（render/status 无必填；apply 要 settings 对象），raw 守卫结构化报错
   settings_card: guarded('settings_card', [], rawExecutors.settings_card),
+  // 规格留空：graph 与 queries 二选一，core 守卫结构化报错
+  enrich_knowledge_evidence: guarded('enrich_knowledge_evidence', [], rawExecutors.enrich_knowledge_evidence),
   describe_capabilities: guarded('describe_capabilities', [], rawExecutors.describe_capabilities),
   generate_assessment: guarded('generate_assessment', [
     { name: 'graph', kind: 'object', hint: 'extract_knowledge_graph 或 fuse_knowledge_graphs 的输出（含 entities 数组）' },

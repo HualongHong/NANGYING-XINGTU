@@ -7,8 +7,8 @@
  * 宿主注入 LLM（llm.value=true）；local 为自托管参考实现，可跑独立 HTTP 端口。
  */
 
-/** 解码器供应商（与 cli/config.ts 的 PROVIDERS 对齐） */
-export const DECODER_PROVIDERS = ['local-ocr', 'kimi', 'openai'] as const;
+/** 解码器供应商（与 cli/config.ts 的 PROVIDERS 对齐；mineru 免 key 有免费档） */
+export const DECODER_PROVIDERS = ['local-ocr', 'kimi', 'openai', 'mineru'] as const;
 export type DecoderProvider = (typeof DECODER_PROVIDERS)[number];
 
 /** 默认 HTTP JSON-RPC 端口（server/http.ts 同源） */
@@ -112,7 +112,7 @@ export interface SettingsField {
 }
 
 export interface SettingsSection {
-  id: 'decoder' | 'transport';
+  id: 'decoder' | 'transport' | 'academic';
   title: string;
   visible: boolean;
   hiddenReason?: string;
@@ -157,14 +157,14 @@ export function renderSettingsCard(policy: PlatformSettingsPolicy): SettingsCard
             required: true,
             options: DECODER_PROVIDERS,
             default: 'local-ocr',
-            policy: 'local-ocr 离线免费（tesseract.js）；kimi/openai 为云端视觉解析，需 API key',
+            policy: 'local-ocr 离线免费（tesseract.js）；mineru 高精度（表格/公式/扫描件），免 key 有免费档、配 key 走精准档；kimi/openai 云端视觉解析需 API key',
           },
           {
             name: 'model',
             label: '模型',
             kind: 'string',
             required: false,
-            default: 'moonshot-v1-8k（kimi）/ gpt-4o（openai）',
+            default: 'moonshot-v1-8k（kimi）/ gpt-4o（openai）/ pipeline（mineru）',
             policy: '留空用供应商默认模型',
           },
           {
@@ -172,7 +172,7 @@ export function renderSettingsCard(policy: PlatformSettingsPolicy): SettingsCard
             label: 'API Endpoint',
             kind: 'url',
             required: false,
-            default: 'https://api.moonshot.cn（kimi）/ https://api.openai.com/v1（openai）',
+            default: 'https://api.moonshot.cn（kimi）/ https://api.openai.com/v1（openai）/ https://mineru.net（mineru）',
             policy: '仅接受 http(s) URL；留空用供应商默认地址',
           },
           {
@@ -205,6 +205,21 @@ export function renderSettingsCard(policy: PlatformSettingsPolicy): SettingsCard
           },
         ],
       },
+      {
+        id: 'academic',
+        title: '学术证据（SciVerse · OpenDataLab）',
+        visible: true,
+        fields: [
+          {
+            name: 'sciverseApiKey',
+            label: 'SciVerse API Token',
+            kind: 'secret',
+            required: false,
+            secret: true,
+            policy: `enrich_knowledge_evidence 学术证据增强用，不影响解析主链；起步额度免费（Console > Tokens 申请）。${SECRET_STORAGE_NOTE}`,
+          },
+        ],
+      },
     ],
     policyNotes: [
       `平台政策（${policy.label}）：${policy.note}`,
@@ -214,16 +229,18 @@ export function renderSettingsCard(policy: PlatformSettingsPolicy): SettingsCard
   };
 }
 
-/** apply 入参（settings 对象）；apiKey 缺省=不动，空字符串=清除 */
+/** apply 入参（settings 对象）；apiKey/sciverseApiKey 缺省=不动，空字符串=清除 */
 export interface ApplySettings {
   provider?: string;
   model?: string;
   endpoint?: string;
   apiKey?: string;
   port?: number | string;
+  /** SciVerse 学术证据 Token（命名密钥 sciverseApiKey；不影响解析主链，可单独设置） */
+  sciverseApiKey?: string;
 }
 
-export type ValidatedSettings = Required<Pick<ApplySettings, 'provider'>> & Omit<ApplySettings, 'provider'>;
+export type ValidatedSettings = ApplySettings;
 
 export type ApplyValidation = { ok: true; value: ValidatedSettings } | { error: string };
 
@@ -266,6 +283,10 @@ export function validateApplySettings(
     if (typeof s.apiKey !== 'string') return { error: 'apiKey 须为字符串' };
     out.apiKey = s.apiKey; // ''=清除；trim 交由存储层语义，原样写入避免截断合法 key
   }
+  if (s.sciverseApiKey !== undefined) {
+    if (typeof s.sciverseApiKey !== 'string') return { error: 'sciverseApiKey 须为字符串' };
+    out.sciverseApiKey = s.sciverseApiKey; // ''=清除；单独设置不要求 provider
+  }
   if (s.port !== undefined) {
     if (policy.transport !== 'http-capable') {
       return { error: `平台 ${policy.platform} 经 MCP stdio 接入，无需端口（独立 HTTP 模式请用 platform="local"）` };
@@ -277,12 +298,12 @@ export function validateApplySettings(
     out.port = n;
   }
   if (Object.keys(out).length === 0) {
-    return { error: 'settings 为空：至少提供 provider/model/endpoint/apiKey/port 之一' };
+    return { error: 'settings 为空：至少提供 provider/model/endpoint/apiKey/sciverseApiKey/port 之一' };
   }
-  if (out.provider === undefined) {
-    return { error: 'provider 必填（应用设置须指明解码器供应商，如 "local-ocr"）' };
+  if (out.provider === undefined && out.sciverseApiKey === undefined) {
+    return { error: 'provider 必填（或仅设置 sciverseApiKey 平台服务密钥，二者至少其一）' };
   }
-  return { ok: true, value: out as ValidatedSettings };
+  return { ok: true, value: out };
 }
 
 /** 密钥指纹：只暴露后 4 位，其余一律不可见 */

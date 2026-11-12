@@ -5,18 +5,19 @@
 set -u
 fail=0
 
-# 1) 严禁跟踪的文件名模式
+# 1) 严禁跟踪的文件名模式（.env.example 为安全模板，.gitignore 显式放行）
 forbidden='^\.env(\.|$)|\.traineddata$|^testfiles/|^tessdata/|^\.nangying-starmap/|^dev-docs/'
 for f in $(git diff --cached --name-only --diff-filter=ACM); do
-  if echo "$f" | grep -qE "$forbidden"; then
+  if [ "$f" != ".env.example" ] && echo "$f" | grep -qE "$forbidden"; then
     echo "[pre-commit] 拒绝提交受保护文件: $f" >&2
     fail=1
   fi
 done
 
 # 2) 暂存内容扫描：疑似真实 API key（sk-/MiniMax/DeepSeek 长 token 形态）
-#    只报形态，不打印内容。
-staged=$(git diff --cached -U0 | grep '^+' | grep -v '^+++' || true)
+#    只报形态，不打印内容；git 补丁文件的 index 哈希行（40-hex + ..）除外。
+staged=$(git diff --cached -U0 | grep '^+' | grep -v '^+++' \
+  | grep -vE '^\+index [0-9a-f]{7,64}\.\.[0-9a-f]{7,64}' || true)
 if echo "$staged" | grep -qE '(sk-[A-Za-z0-9]{20,}|[A-Za-z0-9_-]{32,}\.)'; then
   echo "[pre-commit] 暂存内容疑似包含真实 API key 形态（sk-… 或 32+ 位 token），请检查" >&2
   fail=1

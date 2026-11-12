@@ -1,5 +1,5 @@
 import { describe, expect, it, afterEach } from 'vitest';
-import { mkdtempSync, rmSync, readFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, rmSync, readFileSync, existsSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -64,6 +64,25 @@ describe('configStore（配置与密钥分离存放）', () => {
     clearApiKey();
     expect(readApiKey()).toBeUndefined();
     expect(() => writeApiKey('')).toThrow('不能为空');
+  });
+
+  it('命名多密钥：sciverseApiKey 与缺省 apiKey 共存，互不清除；旧单密钥文件兼容', () => {
+    useTempConfigDir();
+    // 旧文件形态：仅 { apiKey }
+    writeFileSync(secretsPath(), JSON.stringify({ apiKey: 'legacy-key-0000' }), 'utf8');
+    expect(readApiKey()).toBe('legacy-key-0000');
+    expect(readApiKey('sciverseApiKey')).toBeUndefined();
+    // 新命名密钥合并写入，不影响 apiKey
+    writeApiKey('sciverse-token-1111', 'sciverseApiKey');
+    expect(readApiKey()).toBe('legacy-key-0000');
+    expect(readApiKey('sciverseApiKey')).toBe('sciverse-token-1111');
+    // 命名清除只清该键
+    clearApiKey('sciverseApiKey');
+    expect(readApiKey('sciverseApiKey')).toBeUndefined();
+    expect(readApiKey()).toBe('legacy-key-0000');
+    // 非法密钥名拒绝
+    expect(() => writeApiKey('x', 'bad name!')).toThrow('非法');
+    expect(() => readApiKey('9start')).toThrow('非法');
   });
 
   it('目录解析：env 优先', () => {

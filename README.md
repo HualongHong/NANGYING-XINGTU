@@ -11,9 +11,9 @@
 ## 技能分层
 
 ```
-囊萤星图（31 个技能全部实现并注册）
-├── 共享型技能（24 个，平台无关，任何 agent 可直接消费）
-│   └── 解析 → 图谱 → 融合/比对 → 结构 → 脚本 → 翻译/问答 → 路径/反馈 → 导出/资产 → 设置卡片
+囊萤星图（32 个技能全部实现并注册）
+├── 共享型技能（25 个，平台无关，任何 agent 可直接消费）
+│   └── 解析 → 图谱 → 融合/比对 → 结构 → 脚本 → 翻译/问答 → 路径/反馈 → 导出/资产 → 设置卡片 → 学术证据
 └── 特化型技能（7 个，依赖外部引擎，降级实现已就绪：缺能力时产出可演示的降级形态）
     └── 数字分身 / 视频 / 语音 / 多师协同 / 场景 / 多语同步 / 实时问答
 ```
@@ -28,17 +28,18 @@
 
 ## 文档解码与 LLM
 
-- **文档解码**：二进制文档（PDF/PPTX）默认走本地 OCR（tesseract.js，PPTX 原生文本优先、纯图片课件逐页 OCR、非光栅自动跳过），解码结果按内容哈希缓存；宿主亦可注入 `ctx.decoder` 或配置外部供应商（kimi/openai 视觉）。
+- **文档解码**：二进制文档（PDF/PPTX）默认走本地 OCR（tesseract.js，PPTX 原生文本优先、纯图片课件逐页 OCR、非光栅自动跳过），解码结果按内容哈希缓存；宿主亦可注入 `ctx.decoder` 或配置外部供应商——kimi/openai 视觉，以及 **MinerU**（OpenDataLab 高精度解析：表格→HTML、公式→LaTeX；免 key 免费档 ≤10MB/20 页，配 Token 走精准档，见 `adapters/odlab/`）。
 - **LLM 术语过滤**：推荐 **DeepSeek V4 Flash**（OpenAI 兼容，API 实际模型名 `deepseek-flash`；MiniMax M3 已验证兼容，作备选）。仓库根 `.env` 填 `DEEPSEEK_API_KEY` / `MINIMAX_API_KEY` 即可被 LocalAdapter 自动加载（已 gitignore，永不提交）；验收脚本 `scripts/eval-llm-filter.mjs`。
 
 ## 目录结构
 
 ```
 ├── core/                  # 领域核心（零 Node API）：nlp 解析与 MRS 候选/LLM 术语过滤、graph 星图与融合比对、course、qa、i18n、decode 契约
-├── skills/                # 技能契约（Markdown：shared 24 + specialized 7，各含机器可读「输入声明」段）
+├── skills/                # 技能契约（Markdown：shared 25 + specialized 7，各含机器可读「输入声明」段）
 ├── adapters/              # 适配层（允许 Node API）
 │   ├── core/              # 基类/执行器/本地适配器/解码器（OCR、PPTX、缓存、.env LLM 回退）
 │   └── dsh|kimi|trae|codex|workbuddy|qoder/  # 各平台适配器 + profile.json 能力档案
+│   └── odlab/             # OpenDataLab 体系对接（MinerU 解析 / SciVerse 学术证据；DianShi·数据集预留）
 ├── server/                # MCP（stdio）与 HTTP JSON-RPC 最小协议层
 ├── manifests/             # plugin.manifest.json、skills.registry.json（gen-registry 生成）、skills.meta.json
 ├── docs/                  # 用户文档：技能速查、接入指南、工作流配方（开发过程文档一律不入库）

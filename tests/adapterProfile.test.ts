@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   conservativeDefaultProfile,
@@ -61,8 +61,9 @@ describe('适配器能力档案', () => {
     const manifest = JSON.parse(readFileSync('manifests/plugin.manifest.json', 'utf8')) as {
       adapters: string[];
     };
+    // 平台适配器 = 含 profile.json 的目录（core/odlab 等非平台子目录不参与）
     const dirs = readdirSync('adapters', { withFileTypes: true })
-      .filter((d) => d.isDirectory() && d.name !== 'core')
+      .filter((d) => d.isDirectory() && existsSync(join('adapters', d.name, 'profile.json')))
       .map((d) => d.name);
     expect([...manifest.adapters].sort()).toEqual(PLATFORMS);
     expect(dirs.sort()).toEqual(PLATFORMS);

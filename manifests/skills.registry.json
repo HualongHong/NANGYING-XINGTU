@@ -1545,6 +1545,55 @@
       "usage": "三阶段设置卡片：stage=render（默认）按平台政策渲染设置卡片（解码器 API key 与连接端口字段，供宿主渲染 UI）；apply 校验并写入 settings.json（644）/secrets.json（0600，密钥永不回显）；status 脱敏回显当前配置（密钥只报后 4 位指纹）"
     },
     {
+      "skillId": "enrich_knowledge_evidence",
+      "name": "学术证据增强",
+      "type": "shared",
+      "description": "挂接式学术证据增强：graph（或 queries）经 SciVerse（OpenDataLab 学术基座）逐实体检索学术引用，归一化 references 合并为可回图谱的 academicEvidence（agentic=语义证据段 / meta=书目字段）。平台不可用（无 Token/SDK/限流）返回 degraded 且原图谱不动——主流程不中断，证据可后补。",
+      "inputs": [
+        "graph",
+        "queries",
+        "topK",
+        "mode"
+      ],
+      "required": [],
+      "inputSpecs": [
+        {
+          "name": "graph",
+          "kind": "object",
+          "required": false,
+          "hint": "与 queries 二选一：含 entities 数组的课程图谱（extract/fuse 输出），取 kind=concept 的 label 生成查询"
+        },
+        {
+          "name": "queries",
+          "kind": "array",
+          "required": false,
+          "hint": "与 graph 二选一：自定义查询词字符串数组（非空）；entityId 与查询词同值"
+        },
+        {
+          "name": "topK",
+          "kind": "number",
+          "required": false,
+          "hint": "每实体引用条数，1-10 整数，默认 3"
+        },
+        {
+          "name": "mode",
+          "kind": "string",
+          "required": false,
+          "hint": "'\"agentic\"（默认）=语义证据段检索；\"meta\"=元数据检索（venue/year/doi 书目字段）'"
+        }
+      ],
+      "outputs": [
+        "graph",
+        "academicEvidence",
+        "stats",
+        "platformNote"
+      ],
+      "dependsOn": [],
+      "degradation": "无 SciVerse 时 degraded 原样回传输入+空证据+原因说明；graph/queries 非法输入返回 INVALID_INPUT；密钥永不回显",
+      "docPath": "skills/shared/enrich_knowledge_evidence.md",
+      "usage": "挂接式学术证据增强：graph（或 queries）→ SciVerse 逐实体检索学术引用 → 归一化 references 合并可回图谱 academicEvidence。平台不可用（无 Token/SDK/网络/限流）时返回 degraded 且原图谱不动——主流程不中断，证据可后补"
+    },
+    {
       "skillId": "register_teacher_avatar",
       "name": "教师数字分身注册",
       "type": "specialized",

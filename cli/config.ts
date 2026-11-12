@@ -75,6 +75,13 @@ const PROVIDERS = [
     defaultModel: 'gpt-4o',
     defaultEndpoint: 'https://api.openai.com/v1',
   },
+  {
+    id: 'mineru',
+    name: 'MinerU 云端解析（OpenDataLab）',
+    desc: '高精度文档解析：表格→HTML、公式→LaTeX、扫描件 OCR；免 key 免费档（≤10MB/20 页），配 key 精准档（每日免费高优额度）',
+    defaultModel: 'pipeline',
+    defaultEndpoint: 'https://mineru.net',
+  },
 ] as const;
 
 /** 探测本地 OCR 引擎是否可加载（import 探测，不创建 worker、不下载语言包） */

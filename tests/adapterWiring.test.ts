@@ -54,14 +54,15 @@ describe('适配器接线（LocalAdapter）', () => {
     expect(result.degradationNote).toContain('未在本适配器注册');
   });
 
-  it('32 个技能全部注册（含导出、图谱运算、异步任务、能力自述、反馈协调、设置卡片与学术证据）', () => {
+  it('33 个技能全部注册（含导出、图谱运算、异步任务、能力自述、反馈协调、设置卡片、学术证据与数据集探查）', () => {
     const adapter = new LocalAdapter();
     const ids = adapter.listSkills().map((s) => s.skillId);
-    expect(ids).toHaveLength(32);
+    expect(ids).toHaveLength(33);
     expect(ids).toContain('export_course_package');
     expect(ids).toContain('submit_feedback');
     expect(ids).toContain('settings_card');
     expect(ids).toContain('enrich_knowledge_evidence');
+    expect(ids).toContain('inspect_teaching_dataset');
     expect(ids).toContain('realtime_qa_stream');
     expect(ids).toContain('fuse_knowledge_graphs');
     expect(ids).toContain('diff_knowledge_graphs');

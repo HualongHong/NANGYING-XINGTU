@@ -1526,7 +1526,7 @@
           "name": "settings",
           "kind": "object",
           "required": false,
-          "hint": "apply 必填：{ provider(必填), model?, endpoint?, apiKey?(空串=清除), port?(仅 http-capable 平台) }"
+          "hint": "apply 必填：{ provider(与平台服务密钥至少其一), model?, endpoint?, apiKey?(空串=清除), port?(仅 http-capable 平台), sciverseApiKey?, odlabAccessKeyId?/odlabSecretAccessKey?(AK/SK 成对) }"
         }
       ],
       "outputs": [
@@ -1592,6 +1592,61 @@
       "degradation": "无 SciVerse 时 degraded 原样回传输入+空证据+原因说明；graph/queries 非法输入返回 INVALID_INPUT；密钥永不回显",
       "docPath": "skills/shared/enrich_knowledge_evidence.md",
       "usage": "挂接式学术证据增强：graph（或 queries）→ SciVerse 逐实体检索学术引用 → 归一化 references 合并可回图谱 academicEvidence。平台不可用（无 Token/SDK/网络/限流）时返回 degraded 且原图谱不动——主流程不中断，证据可后补"
+    },
+    {
+      "skillId": "inspect_teaching_dataset",
+      "name": "教学数据集探查",
+      "type": "shared",
+      "description": "OpenDataLab 数据集仓库探查：元信息 + 文件清单 + 教学相关性启发式评分（试题/教材/课件/课程关键词命中，确定性）。公共仓库匿名零配置可探查；受限仓库经 AK/SK（odlabAccessKeyId/odlabSecretAccessKey 命名密钥）解锁。平台失败/仓库不存在返回结构化错误，不影响课程生产主流程。",
+      "inputs": [
+        "repo",
+        "listFiles",
+        "maxFiles",
+        "prefix"
+      ],
+      "required": [
+        "repo"
+      ],
+      "inputSpecs": [
+        {
+          "name": "repo",
+          "kind": "string",
+          "required": true,
+          "hint": "'数据集仓库地址 \"username/repo_name\"，如 OpenDataLab/UniTE'"
+        },
+        {
+          "name": "listFiles",
+          "kind": "boolean",
+          "required": false,
+          "hint": "是否拉取文件清单（默认 true；false 只回元信息更快）"
+        },
+        {
+          "name": "maxFiles",
+          "kind": "number",
+          "required": false,
+          "hint": "文件清单截断阈值，1-1000 整数，默认 200"
+        },
+        {
+          "name": "prefix",
+          "kind": "string",
+          "required": false,
+          "hint": "'只列该子目录（如 data/exams），防 \"..\"'"
+        }
+      ],
+      "outputs": [
+        "repo",
+        "description",
+        "visibility",
+        "tags",
+        "files",
+        "teachingRelevance",
+        "matchedKeywords",
+        "truncated"
+      ],
+      "dependsOn": [],
+      "degradation": "可选增强不影响主流程；公共仓库匿名可用，受限仓库 401 结构化提示配置 AK/SK；清单失败 degraded 半量返回；评分纯本地确定性",
+      "docPath": "skills/shared/inspect_teaching_dataset.md",
+      "usage": "OpenDataLab 数据集仓库探查：元信息 + 文件清单 + 教学相关性启发式评分。公共仓库匿名即可探查（零配置）；受限仓库需配置 odlabAccessKeyId/odlabSecretAccessKey 命名密钥；平台不可用/仓库不存在返回结构化错误——不影响课程生产主流程"
     },
     {
       "skillId": "register_teacher_avatar",

@@ -35,7 +35,8 @@
       "link_knowledge_industry",
       "submit_feedback",
       "settings_card",
-      "enrich_knowledge_evidence"
+      "enrich_knowledge_evidence",
+      "inspect_teaching_dataset"
     ],
     "specialized": [
       "register_teacher_avatar",

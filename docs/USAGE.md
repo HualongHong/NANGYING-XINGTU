@@ -126,8 +126,10 @@ pnpm config --clear   # 清除密钥
 
 学术证据（可选）：`enrich_knowledge_evidence` 技能经 SciVerse（OpenDataLab 学术基座）为图谱逐概念挂学术引用；Token 用 settings_card 的学术证据区块写入命名密钥 `sciverseApiKey`，或 `.env` 的 `SCIVERSE_API_TOKEN` 调试通道。无 Token 时技能返回 `degraded` 且图谱不动，主流程不中断。
 
+数据集探查（可选）：`inspect_teaching_dataset` 技能探查 OpenDataLab 数据集仓库（元信息+文件清单+教学相关性评分）；**公共仓库匿名零配置可用**，受限仓库经 settings_card 数据集区块写入 `odlabAccessKeyId`/`odlabSecretAccessKey`（AK/SK 成对，0600），或 `.env` 的 `OPENXLAB_AK`/`OPENXLAB_SK`。
+
 **密钥安全策略**（key 生命周期）：
-- 存放：配置目录 `~/.nangying-starmap/`（可用 env `NANGYING_CONFIG_DIR` 覆盖）；`settings.json` 只存非敏感配置（644），`secrets.json` 存命名密钥映射 `{ "apiKey": …, "sciverseApiKey": … }`（600；缺省名 `apiKey` 与旧文件兼容；Windows 下 chmod 尽力而为，建议再以文件系统 ACL 收紧目录访问）；
+- 存放：配置目录 `~/.nangying-starmap/`（可用 env `NANGYING_CONFIG_DIR` 覆盖）；`settings.json` 只存非敏感配置（644），`secrets.json` 存命名密钥映射 `{ "apiKey": …, "sciverseApiKey": …, "odlabAccessKeyId": …, "odlabSecretAccessKey": … }`（600；缺省名 `apiKey` 与旧文件兼容；Windows 下 chmod 尽力而为，建议再以文件系统 ACL 收紧目录访问）；
 - 写入：`writeConfig` 入参校验拒绝任何字段名含 key/token/secret/password 的配置；向导与参数模式均不回显 key；
 - 读取：解码器工厂以 `keyProvider: () => readApiKey()` 在**请求时刻**惰性读取，不缓存、不打印；
 - 使用：密钥只出现在请求的 `Authorization` 头中；

@@ -12,7 +12,7 @@
 ## 输入
 - `stage`（可选）：`render`（默认）按平台政策渲染设置卡片；`apply` 校验并应用设置；`status` 脱敏回显当前配置
 - `platform`（可选）：平台标识 `dsh` | `kimi` | `trae` | `codex` | `workbuddy` | `qoder` | `local`；缺省取执行上下文注入的宿主平台，再缺省按 `generic` 保守政策对待（端口不开放）
-- `settings`（apply 必填）：设置对象——`provider`（`local-ocr` | `kimi` | `openai` | `mineru`，与 `sciverseApiKey` 至少其一）、`model?`、`endpoint?`（仅 http(s) URL）、`apiKey?`（缺省不动，空字符串=清除）、`port?`（1-65535，仅 `http-capable` 平台如 local 可设）、`sciverseApiKey?`（SciVerse 学术证据 Token，可单独设置，空字符串=清除）
+- `settings`（apply 必填）：设置对象——`provider`（`local-ocr` | `kimi` | `openai` | `mineru`，与下面平台服务密钥至少其一）、`model?`、`endpoint?`（仅 http(s) URL）、`apiKey?`（缺省不动，空字符串=清除）、`port?`（1-65535，仅 `http-capable` 平台如 local 可设）、`sciverseApiKey?`（SciVerse 学术证据 Token）、`odlabAccessKeyId?`/`odlabSecretAccessKey?`（OpenXLab AK/SK，成对使用，公共数据集仓库匿名可探查）
 
 ## 输入声明
 
@@ -33,7 +33,7 @@ inputs:
   - name: settings
     kind: object
     required: false
-    hint: "apply 必填：{ provider(与 sciverseApiKey 至少其一), model?, endpoint?, apiKey?(空串=清除), port?(仅 http-capable 平台), sciverseApiKey?(学术证据 Token，可单独设置) }"
+    hint: "apply 必填：{ provider(与平台服务密钥至少其一), model?, endpoint?, apiKey?(空串=清除), port?(仅 http-capable 平台), sciverseApiKey?, odlabAccessKeyId?/odlabSecretAccessKey?(AK/SK 成对) }"
 ```
 
 ## 输出

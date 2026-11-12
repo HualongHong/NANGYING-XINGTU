@@ -12,6 +12,7 @@
 
 **调用序列**：
 
+0. （可选）`inspect_teaching_dataset`：`{ repo: "OpenDataLab/某教学数据集", maxFiles: 100 }` → 元信息+文件清单+教学相关性评分。公共仓库匿名零配置可探查，用来给课程找试题/教材/课件类公开数据集；平台不可用直接跳过，不影响后续。
 1. `parse_course_material` × N（每个材料一次）：`{ materialFile: "<路径>", options: { llmFilter: "auto" } }` → 章节/段落/候选池 + `llmFilterReport`。产物衔接：输出的 `knowledgePointCandidates`（全量候选池）要留给 fuse。
 2. `extract_knowledge_graph` × N：`{ structuredContent: "$parse_course_material" }` → 单元图谱（星图中枢 schema）。
 3. `fuse_knowledge_graphs`：`{ graphs: [N 个单元图谱], sources: [{id, weight}], pools: [N 个候选池] }` → 整门课融合图谱 + 归并报告（跨单元共享概念如"离心/标准曲线"在此归并）。

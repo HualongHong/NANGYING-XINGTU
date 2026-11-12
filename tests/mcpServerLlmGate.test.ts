@@ -20,7 +20,7 @@ describe('MCP server 通道 LLM 默认关闭（防超时通道批量调用）', 
     try {
       const adapter = createMcpAdapter();
       // 不真正调用：仅验证适配器构造了 provider（技能描述级行为不变，调用留给 opt-in 用户）
-      expect(adapter.listSkills()).toHaveLength(32);
+      expect(adapter.listSkills()).toHaveLength(33);
     } finally {
       if (prev === undefined) delete process.env.NANGYING_MCP_LLM;
       else process.env.NANGYING_MCP_LLM = prev;

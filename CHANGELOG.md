@@ -4,6 +4,16 @@
 
 ## [Unreleased]（1.8.0 预备）
 
+R19 迭代：OpenDataLab 数据集探查——`inspect_teaching_dataset` 技能（第 26 个共享技能）探查数据集仓库元信息+文件清单并给教学相关性评分；公共仓库匿名零配置可用，AK/SK 成对解锁受限仓库。
+
+### Added
+
+- **`inspect_teaching_dataset` 教学数据集探查（第 26 个共享技能）**：输入 `repo`（username/repo_name）→ OpenXLab OpenAPI 元信息 + 文件清单（`maxFiles` 1-1000 截断、`prefix` 子目录、`listFiles=false` 只回元信息）→ 归一化输出 + **教学相关性启发式**（试题/教材/课件/课程关键词命中确定性评分 high/medium/low）。端点与 AK/SK→JWT 流程复刻自官方 openxlab SDK 源码（`openxlab.org.cn/datasets/api/v2/`，仓库名斜杠转逗号；`openapi.openxlab.org.cn` 的 auth→HMAC-SHA256(SK, nonce)→getJwt 挑战式鉴权，node:crypto 实现），端点可经 `extra.odlabEndpoint` 覆盖。
+- **四级降级**（对应"平台不可用独立执行"）：①公共仓库**匿名可探查**（官方行为：info/list 对公开仓库无需授权）——零配置兜底；②受限仓库 401/403 → `AUTH_REQUIRED` 结构化引导配置命名密钥；③清单失败而元信息可得 → `degraded` 半量返回；④网络故障 → `PLATFORM_UNAVAILABLE`（明示不影响课程生产主流程）。
+- **AK/SK 成对密钥位**：settings_card 新增"数据集探查"区块（`odlabAccessKeyId`/`odlabSecretAccessKey`，secret 标记、policy 注明成对语义与 HMAC 用途）；命名密钥落盘 secrets.json（0600），status 脱敏回显（只报后 4 位指纹）；`.env` 调试通道 `OPENXLAB_AK`/`OPENXLAB_SK`（与官方 SDK 环境变量同名）。
+- **`adapters/odlab/datasets.ts`**：统一签名（ak/skProvider 惰性取钥 + fetchImpl 可注入 + redact 脱敏 + withTimeout），JWT 内存缓存（提前 60s 过期重取），401 自动鉴权重试。
+- **odlab 平台矩阵升级**：OpenDataLab 数据集由 Tier 3 预留升为 Tier 1 实装；关键词"搜索"端点经核实官方 SDK 未暴露免费 HTTP 搜索接口，列为预留 seam。
+
 R17 迭代：设置卡片——`settings_card` 技能（第 24 个共享技能）按平台政策渲染声明式设置卡片，用户可设置解码器 API key 与连接端口；密钥写入 secrets.json（0600）永不回显，端口仅 http-capable 平台开放。
 
 ### Added
@@ -18,6 +28,7 @@ R15 迭代：六平台适配器——TRAE 更名写实、WorkBuddy/QoDER 新增�
 R16 迭代：反馈闭环——`submit_feedback` 技能（默认脱敏 + 审阅门 + 显式敏感通道）+ 编程端 loop engineering（指标/门槛/CI 强制）。测试 442 → 464。
 R17 迭代：设置卡片——`settings_card` 技能按平台政策渲染 API key/连接端口设置卡片（六 agent 平台端口自动隐藏、密钥永不回显）。测试 464 → 471。
 R18 迭代：OpenDataLab 体系对接——`adapters/odlab/` 对接层（MinerU 双档解析 + SciVerse 学术证据技能 + DianShi/数据集预留位），新共享技能 `enrich_knowledge_evidence`。测试 471 → 493。
+R19 迭代：OpenDataLab 数据集探查——新共享技能 `inspect_teaching_dataset`（公共仓库匿名零配置可探查 + AK/SK 解锁受限仓库 + 四级降级）。测试 493 → 506。
 
 ### Added
 

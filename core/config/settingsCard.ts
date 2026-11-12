@@ -112,7 +112,7 @@ export interface SettingsField {
 }
 
 export interface SettingsSection {
-  id: 'decoder' | 'transport' | 'academic';
+  id: 'decoder' | 'transport' | 'academic' | 'datasets';
   title: string;
   visible: boolean;
   hiddenReason?: string;
@@ -220,6 +220,29 @@ export function renderSettingsCard(policy: PlatformSettingsPolicy): SettingsCard
           },
         ],
       },
+      {
+        id: 'datasets',
+        title: '数据集探查（OpenDataLab / OpenXLab）',
+        visible: true,
+        fields: [
+          {
+            name: 'odlabAccessKeyId',
+            label: 'Access Key ID',
+            kind: 'secret',
+            required: false,
+            secret: true,
+            policy: `与 Secret Access Key 成对使用（身份标识）。公共数据集仓库匿名可探查，仅受限仓库需要。${SECRET_STORAGE_NOTE}`,
+          },
+          {
+            name: 'odlabSecretAccessKey',
+            label: 'Secret Access Key',
+            kind: 'secret',
+            required: false,
+            secret: true,
+            policy: `与 Access Key ID 成对；仅用于 getJwt 的 HMAC 挑战签名，永不进 URL/日志/反馈。${SECRET_STORAGE_NOTE}`,
+          },
+        ],
+      },
     ],
     policyNotes: [
       `平台政策（${policy.label}）：${policy.note}`,
@@ -229,7 +252,7 @@ export function renderSettingsCard(policy: PlatformSettingsPolicy): SettingsCard
   };
 }
 
-/** apply 入参（settings 对象）；apiKey/sciverseApiKey 缺省=不动，空字符串=清除 */
+/** apply 入参（settings 对象）；密钥类缺省=不动，空字符串=清除 */
 export interface ApplySettings {
   provider?: string;
   model?: string;
@@ -238,6 +261,9 @@ export interface ApplySettings {
   port?: number | string;
   /** SciVerse 学术证据 Token（命名密钥 sciverseApiKey；不影响解析主链，可单独设置） */
   sciverseApiKey?: string;
+  /** OpenDataLab/OpenXLab AK/SK（成对使用；命名密钥 odlabAccessKeyId/odlabSecretAccessKey） */
+  odlabAccessKeyId?: string;
+  odlabSecretAccessKey?: string;
 }
 
 export type ValidatedSettings = ApplySettings;
@@ -287,6 +313,14 @@ export function validateApplySettings(
     if (typeof s.sciverseApiKey !== 'string') return { error: 'sciverseApiKey 须为字符串' };
     out.sciverseApiKey = s.sciverseApiKey; // ''=清除；单独设置不要求 provider
   }
+  if (s.odlabAccessKeyId !== undefined) {
+    if (typeof s.odlabAccessKeyId !== 'string') return { error: 'odlabAccessKeyId 须为字符串' };
+    out.odlabAccessKeyId = s.odlabAccessKeyId; // ''=清除；AK/SK 成对语义见契约平台政策
+  }
+  if (s.odlabSecretAccessKey !== undefined) {
+    if (typeof s.odlabSecretAccessKey !== 'string') return { error: 'odlabSecretAccessKey 须为字符串' };
+    out.odlabSecretAccessKey = s.odlabSecretAccessKey;
+  }
   if (s.port !== undefined) {
     if (policy.transport !== 'http-capable') {
       return { error: `平台 ${policy.platform} 经 MCP stdio 接入，无需端口（独立 HTTP 模式请用 platform="local"）` };
@@ -298,10 +332,15 @@ export function validateApplySettings(
     out.port = n;
   }
   if (Object.keys(out).length === 0) {
-    return { error: 'settings 为空：至少提供 provider/model/endpoint/apiKey/sciverseApiKey/port 之一' };
+    return { error: 'settings 为空：至少提供 provider/model/endpoint/apiKey/sciverseApiKey/odlabAccessKeyId/odlabSecretAccessKey/port 之一' };
   }
-  if (out.provider === undefined && out.sciverseApiKey === undefined) {
-    return { error: 'provider 必填（或仅设置 sciverseApiKey 平台服务密钥，二者至少其一）' };
+  if (
+    out.provider === undefined &&
+    out.sciverseApiKey === undefined &&
+    out.odlabAccessKeyId === undefined &&
+    out.odlabSecretAccessKey === undefined
+  ) {
+    return { error: 'provider 必填（或仅设置平台服务密钥：sciverseApiKey / odlabAccessKeyId / odlabSecretAccessKey，至少其一）' };
   }
   return { ok: true, value: out };
 }

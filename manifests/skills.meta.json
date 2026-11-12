@@ -504,6 +504,25 @@
       "dependsOn": [],
       "degradation": "无 SciVerse 时 degraded 原样回传输入+空证据+原因说明；graph/queries 非法输入返回 INVALID_INPUT；密钥永不回显",
       "docPath": "skills/shared/enrich_knowledge_evidence.md"
+    },
+    "inspect_teaching_dataset": {
+      "skillId": "inspect_teaching_dataset",
+      "name": "教学数据集探查",
+      "type": "shared",
+      "description": "OpenDataLab 数据集仓库探查：元信息 + 文件清单 + 教学相关性启发式评分（试题/教材/课件/课程关键词命中，确定性）。公共仓库匿名零配置可探查；受限仓库经 AK/SK（odlabAccessKeyId/odlabSecretAccessKey 命名密钥）解锁。平台失败/仓库不存在返回结构化错误，不影响课程生产主流程。",
+      "outputs": [
+        "repo",
+        "description",
+        "visibility",
+        "tags",
+        "files",
+        "teachingRelevance",
+        "matchedKeywords",
+        "truncated"
+      ],
+      "dependsOn": [],
+      "degradation": "可选增强不影响主流程；公共仓库匿名可用，受限仓库 401 结构化提示配置 AK/SK；清单失败 degraded 半量返回；评分纯本地确定性",
+      "docPath": "skills/shared/inspect_teaching_dataset.md"
     }
   }
 }

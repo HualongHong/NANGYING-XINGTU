@@ -57,6 +57,12 @@ import {
   MAX_EVIDENCE_QUERIES,
   type EntityEvidence,
 } from '../../core/evidence/enrichEvidence.js';
+import {
+  planInspectDataset,
+  normalizeFiles,
+  normalizeInfo,
+  scoreTeachingRelevance,
+} from '../../core/dataset/inspectDataset.js';
 import type { AdapterBase } from './adapter.base.js';
 import registry from '../../manifests/skills.registry.json' with { type: 'json' };
 
@@ -94,6 +100,7 @@ const IMPLEMENTED_SKILLS = [
   'submit_feedback',
   'settings_card',
   'enrich_knowledge_evidence',
+  'inspect_teaching_dataset',
 ] as const;
 
 type ImplementedSkillId = (typeof IMPLEMENTED_SKILLS)[number];
@@ -1289,6 +1296,14 @@ const rawExecutors: Record<
           sciverse: sciverseKey
             ? { configured: true, fingerprint: secretFingerprint(sciverseKey) }
             : { configured: false },
+          odlab: (() => {
+            const ak = configStore.readApiKey('odlabAccessKeyId');
+            const sk = configStore.readApiKey('odlabSecretAccessKey');
+            return {
+              ak: ak ? { configured: true, fingerprint: secretFingerprint(ak) } : { configured: false },
+              sk: sk ? { configured: true, fingerprint: secretFingerprint(sk) } : { configured: false },
+            };
+          })(),
           paths: { settings: configStore.settingsPath(), secrets: configStore.secretsPath() },
           policy: policy.note,
         },
@@ -1344,6 +1359,36 @@ const rawExecutors: Record<
         changes.push('SciVerse Token 已写入 secrets.json 命名密钥 sciverseApiKey（0600，不回显）');
       }
     }
+    if (s.odlabAccessKeyId !== undefined) {
+      if (s.odlabAccessKeyId === '') {
+        configStore.clearApiKey('odlabAccessKeyId');
+        changes.push('OpenXLab Access Key ID 已清除');
+      } else {
+        configStore.writeApiKey(s.odlabAccessKeyId, 'odlabAccessKeyId');
+        changes.push('OpenXLab Access Key ID 已写入命名密钥 odlabAccessKeyId（0600）');
+      }
+    }
+    if (s.odlabSecretAccessKey !== undefined) {
+      if (s.odlabSecretAccessKey === '') {
+        configStore.clearApiKey('odlabSecretAccessKey');
+        changes.push('OpenXLab Secret Access Key 已清除');
+      } else {
+        configStore.writeApiKey(s.odlabSecretAccessKey, 'odlabSecretAccessKey');
+        changes.push('OpenXLab Secret Access Key 已写入命名密钥 odlabSecretAccessKey（0600，不回显）');
+      }
+    }
+    let odlab: {
+      ak: { stored: boolean; fingerprint?: string };
+      sk: { stored: boolean; fingerprint?: string };
+    } | undefined;
+    if (s.odlabAccessKeyId !== undefined || s.odlabSecretAccessKey !== undefined) {
+      const ak = configStore.readApiKey('odlabAccessKeyId');
+      const sk = configStore.readApiKey('odlabSecretAccessKey');
+      odlab = {
+        ak: ak ? { stored: true, fingerprint: secretFingerprint(ak) } : { stored: false },
+        sk: sk ? { stored: true, fingerprint: secretFingerprint(sk) } : { stored: false },
+      };
+    }
     return {
       skillId: 'settings_card',
       level: 'full' as const,
@@ -1352,6 +1397,7 @@ const rawExecutors: Record<
         applied: changes,
         secret,
         sciverse,
+        odlab,
         port: s.port ?? (prev?.extra?.port !== undefined ? Number(prev.extra.port) : DEFAULT_HTTP_PORT),
         paths: { settings: configStore.settingsPath(), secrets: configStore.secretsPath() },
         next: '自托管 HTTP 模式重启 server 后端口生效；stage="status" 查看配置',
@@ -1421,6 +1467,85 @@ const rawExecutors: Record<
         ...(plan.queries.length >= MAX_EVIDENCE_QUERIES
           ? { note: `查询实体数达上限 ${MAX_EVIDENCE_QUERIES}（平台额度保护），已截断` }
           : {}),
+      },
+    };
+  },
+  // 教学数据集探查：OpenDataLab 元信息+文件清单+教学相关性；公共仓库匿名可用，受限给配置引导
+  inspect_teaching_dataset: async (inputs) => {
+    const fail = (
+      errorCode: 'INVALID_INPUT' | 'AUTH_REQUIRED' | 'PLATFORM_UNAVAILABLE',
+      degradationNote: string,
+    ) => ({
+      skillId: 'inspect_teaching_dataset' as const,
+      level: 'unavailable' as const,
+      errorCode,
+      degradationNote,
+      example: '{ "repo": "OpenDataLab/UniTE", "maxFiles": 100 }',
+    });
+    const plan = planInspectDataset(inputs);
+    if (!plan.ok) return fail('INVALID_INPUT', `输入校验失败：${plan.error}`);
+    const configStore = await import('./configStore.js');
+    const { loadProjectDotEnv } = await import('./dotenv.js');
+    loadProjectDotEnv();
+    const { createOdlabDatasetClient, OdlabAuthError } = await import('../odlab/datasets.js');
+    const extra = configStore.readConfig()?.extra ?? {};
+    const client = createOdlabDatasetClient({
+      akProvider: () => configStore.readApiKey('odlabAccessKeyId') ?? process.env.OPENXLAB_AK,
+      skProvider: () => configStore.readApiKey('odlabSecretAccessKey') ?? process.env.OPENXLAB_SK,
+      ...(extra.odlabEndpoint ? { endpoint: extra.odlabEndpoint } : {}),
+      ...(extra.odlabTimeoutMs ? { timeoutMs: Number(extra.odlabTimeoutMs) || undefined } : {}),
+    });
+    let infoRaw: unknown;
+    try {
+      infoRaw = await client.info(plan.repo);
+    } catch (err) {
+      if (err instanceof OdlabAuthError) {
+        return fail('AUTH_REQUIRED', `${err.message}（settings_card 数据集区块 或 OPENXLAB_AK/OPENXLAB_SK）`);
+      }
+      return fail('PLATFORM_UNAVAILABLE', `OpenDataLab 探查失败：${err instanceof Error ? err.message : String(err)}；不影响课程生产主流程，可稍后重试`);
+    }
+    const collected: unknown[] = [];
+    let truncated = false;
+    let note = '';
+    if (plan.listFiles) {
+      let after: string | undefined;
+      try {
+        for (let guard = 0; guard < 5 && collected.length < plan.maxFiles; guard++) {
+          const r = await client.listFiles(plan.repo, {
+            ...(plan.prefix ? { prefix: plan.prefix } : {}),
+            limit: Math.min(plan.maxFiles, 500),
+            ...(after ? { after } : {}),
+          });
+          const list = Array.isArray((r.raw as { list?: unknown[] })?.list)
+            ? ((r.raw as { list: unknown[] }).list)
+            : [];
+          collected.push(...list);
+          after = r.nextCursor;
+          if (!after) break;
+        }
+        if (after && collected.length >= plan.maxFiles) truncated = true;
+      } catch (err) {
+        // 清单失败：degraded 半量返回（元信息已得，不中断）
+        truncated = true;
+        note = `文件清单获取失败：${err instanceof Error ? err.message : String(err)}`;
+      }
+    }
+    const info = normalizeInfo(plan.repo, infoRaw);
+    const files = normalizeFiles(collected.slice(0, plan.maxFiles));
+    const rel = scoreTeachingRelevance(files.map((f) => f.path));
+    return {
+      skillId: 'inspect_teaching_dataset',
+      level: note ? ('degraded' as const) : ('full' as const),
+      degradationNote: note,
+      data: {
+        ...info,
+        files,
+        fileCount: info.fileCount || files.length,
+        totalBytes: info.totalBytes || files.reduce((n, f) => n + f.size, 0),
+        teachingRelevance: rel.level,
+        matchedKeywords: rel.matched,
+        truncated,
+        source: 'opendatalab' as const,
       },
     };
   },
@@ -1550,6 +1675,9 @@ const executors: Record<
   settings_card: guarded('settings_card', [], rawExecutors.settings_card),
   // 规格留空：graph 与 queries 二选一，core 守卫结构化报错
   enrich_knowledge_evidence: guarded('enrich_knowledge_evidence', [], rawExecutors.enrich_knowledge_evidence),
+  inspect_teaching_dataset: guarded('inspect_teaching_dataset', [
+    { name: 'repo', kind: 'string', hint: 'OpenDataLab 数据集仓库地址 "username/repo_name"，如 OpenDataLab/UniTE（公共仓库匿名可探查）' },
+  ], rawExecutors.inspect_teaching_dataset),
   describe_capabilities: guarded('describe_capabilities', [], rawExecutors.describe_capabilities),
   generate_assessment: guarded('generate_assessment', [
     { name: 'graph', kind: 'object', hint: 'extract_knowledge_graph 或 fuse_knowledge_graphs 的输出（含 entities 数组）' },

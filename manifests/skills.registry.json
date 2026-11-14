@@ -1649,6 +1649,350 @@
       "usage": "OpenDataLab 数据集仓库探查：元信息 + 文件清单 + 教学相关性启发式评分。公共仓库匿名即可探查（零配置）；受限仓库需配置 odlabAccessKeyId/odlabSecretAccessKey 命名密钥；平台不可用/仓库不存在返回结构化错误——不影响课程生产主流程"
     },
     {
+      "skillId": "gather_teaching_requirements",
+      "name": "教学需求治理",
+      "type": "shared",
+      "description": "科教融合备课工作流第一步：开工必问 Q1–Q8 校验与停工判定（不预设不猜测）、H/P 约束分层与纠偏登记表（纠偏即登记）、迭代场景沿用并复述与口径变更标注。纯判定零 IO。",
+      "inputs": [
+        "answers",
+        "priorAnswers",
+        "confirmedCarryOver",
+        "corrections"
+      ],
+      "required": [],
+      "inputSpecs": [
+        {
+          "name": "answers",
+          "kind": "object",
+          "required": false,
+          "hint": "本轮 Q1–Q8 回答键值 { courseMeta, knowledgeStructure, abstractCollection, template, teachingParams, depthAndPlan, casePreferences, extraOutputs }；空值视为未答"
+        },
+        {
+          "name": "priorAnswers",
+          "kind": "object",
+          "required": false,
+          "hint": "上一轮同键值回答（迭代场景）：未重答项给 carriedOver 建议，答了但不同项给 changed 标注"
+        },
+        {
+          "name": "confirmedCarryOver",
+          "kind": "array",
+          "required": false,
+          "hint": "用户明确确认沿用的 question id 数组（如 [\\\"Q1\\\",\\\"Q5\\\"]），确认后不再要求复述"
+        },
+        {
+          "name": "corrections",
+          "kind": "array",
+          "required": false,
+          "hint": "纠偏记录 [{ quote, content, layer?, artifacts?, regression?, effectiveVersion? }]，content 写可判定祈使句；layer 缺省 auto（拿不准归 P）"
+        }
+      ],
+      "outputs": [
+        "checklist",
+        "stopWork",
+        "blockingMissing",
+        "toCollect",
+        "assumptionsUsed",
+        "constraintRegistry",
+        "replay"
+      ],
+      "dependsOn": [],
+      "degradation": "纯判定零依赖：无 LLM 行为一致；纠偏缺 quote/content 或 layer 非法时拒绝该条并指明原因，其余照常",
+      "docPath": "skills/shared/gather_teaching_requirements.md",
+      "usage": "科教融合备课工作流第一步：开工必问 Q1–Q8 校验与停工判定、H/P 约束分层与纠偏登记表、迭代场景沿用并复述"
+    },
+    {
+      "skillId": "parse_abstract_collection",
+      "name": "摘要集解析",
+      "type": "shared",
+      "description": "会议摘要集 → 结构化记录（题名/作者/单位/关键词/正文/分会场/物理页+印刷页）：页号偏移 Δ 自动探测（恒值/分段/不可用）、entryPattern 条目切分或预切分归一化、抽取缺陷旗标（长题名吃作者行/跨页断裂/关键词混入正文）、解析覆盖率。分页文本由适配层/调用方提供。",
+      "inputs": [
+        "materialFile",
+        "pages",
+        "content",
+        "records",
+        "entryPattern",
+        "sessionHints",
+        "declaredTotal",
+        "workspaceRoot"
+      ],
+      "required": [],
+      "inputSpecs": [
+        {
+          "name": "materialFile",
+          "kind": "any",
+          "required": false,
+          "hint": "文件路径字符串，或已解码对象 { content, materialType, pages? }；与 pages/content 二选一"
+        },
+        {
+          "name": "pages",
+          "kind": "array",
+          "required": false,
+          "hint": "分页文本数组（pdftotext 分页直出）：有分页才能做页号偏移 Δ 探测与跨页条目合并"
+        },
+        {
+          "name": "content",
+          "kind": "string",
+          "required": false,
+          "hint": "纯文本；含 \\f 分页符时自动切段；单段时偏移探测报 unavailable"
+        },
+        {
+          "name": "records",
+          "kind": "array",
+          "required": false,
+          "hint": "预切分记录 [{ title, authors?, affiliations?, keywords?, body, session?, physicalPage?/printedPage? }]，归一化路径"
+        },
+        {
+          "name": "entryPattern",
+          "kind": "string",
+          "required": false,
+          "hint": "条目起始行正则（依目录页式样，如 ^\\\\d{4}）：逐行命中切分；缺省且未给 records 时只出分会场归属+偏移探测（degraded）"
+        },
+        {
+          "name": "sessionHints",
+          "kind": "array",
+          "required": false,
+          "hint": "分会场标题提示词（内置 分会场/专题/专场/Session/论坛/报告会）"
+        },
+        {
+          "name": "declaredTotal",
+          "kind": "number",
+          "required": false,
+          "hint": "摘要集自述收录篇数：输出解析覆盖率，差额写交付说明不强行补齐"
+        },
+        {
+          "name": "workspaceRoot",
+          "kind": "string",
+          "required": false,
+          "hint": "materialFile 相对路径解析根目录（MCP 子进程 cwd 与宿主工作区不一致时必传）"
+        }
+      ],
+      "outputs": [
+        "records",
+        "sessions",
+        "pageOffset",
+        "coverage",
+        "defects",
+        "degraded"
+      ],
+      "dependsOn": [],
+      "degradation": "无分页时偏移探测报 unavailable（来源标注只给物理页）；无 entryPattern 且无预切分记录 degraded（只出分会场归属+偏移）；输入非法结构化报错，预切分字段缺失给安全缺省",
+      "docPath": "skills/shared/parse_abstract_collection.md",
+      "usage": "会议摘要集 → 结构化记录（题名/作者/单位/关键词/正文/分会场/物理页+印刷页）+ 页号偏移探测 + 抽取缺陷旗标 + 解析覆盖率"
+    },
+    {
+      "skillId": "select_research_evidence",
+      "name": "研究例证选文",
+      "type": "shared",
+      "description": "从摘要集记录按章节知识点选研究例证：词族命中加权评分（题名>关键词>正文>单位，权重可配建议值）、相对分位阈值（非绝对分数线）、排除词降权、题名去重、覆盖面约束优先（每节至少 k 条，补入标必复核）、收敛四条件、落选理由留痕与复核记录表。词族可由 LLM 派生，缺 LLM 核心词直取。",
+      "inputs": [
+        "records",
+        "sections",
+        "families",
+        "weights",
+        "percentile",
+        "perSectionMin"
+      ],
+      "required": [
+        "records",
+        "sections"
+      ],
+      "inputSpecs": [
+        {
+          "name": "records",
+          "kind": "array",
+          "required": true,
+          "hint": "parse_abstract_collection 输出的 records（id/title/keywords/body/affiliations/session/defects）",
+          "producer": [
+            "parse_abstract_collection"
+          ]
+        },
+        {
+          "name": "sections",
+          "kind": "array",
+          "required": true,
+          "hint": "[{ title, knowledgePoints, keyPoints?, confusables?, declaredNoHit? }]：节名+知识点标签（核心词直取）+易混概念（排除词）"
+        },
+        {
+          "name": "families",
+          "kind": "array",
+          "required": false,
+          "hint": "预派生词族 [{ section, core[], expansion[], exclusion[] }]；缺省启发式 core=知识点标签，LLM 在场自动派生并入"
+        },
+        {
+          "name": "weights",
+          "kind": "object",
+          "required": false,
+          "hint": "字段权重 { title?, keyword?, body?, affiliation? }，默认 {3,2,1,0.5}（建议值可改）"
+        },
+        {
+          "name": "percentile",
+          "kind": "number",
+          "required": false,
+          "hint": "相对分位阈值 (0,1]，默认 0.2：不用绝对分数线；建议值按摘要集规模调整"
+        },
+        {
+          "name": "perSectionMin",
+          "kind": "number",
+          "required": false,
+          "hint": "每节至少入选条数（默认 1）：覆盖不足时放宽该节阈值补入并标必复核，不让热门主题挤满名单"
+        }
+      ],
+      "outputs": [
+        "candidates",
+        "selected",
+        "rejected",
+        "reviewQueue",
+        "convergence",
+        "stats"
+      ],
+      "dependsOn": [
+        "llm(可选：词族派生)"
+      ],
+      "degradation": "无 LLM 核心词直取+confusables 排除词，行为可复现仅召回面变窄；零命中返回空选+收敛未达+扩词族指引，不凑数不硬套；输入非法结构化报错",
+      "docPath": "skills/shared/select_research_evidence.md",
+      "usage": "从摘要集记录中按章节知识点选研究例证：词族加权评分 + 相对分位阈值 + 覆盖优先 + 复核记录 + 收敛四条件"
+    },
+    {
+      "skillId": "compose_teaching_artifacts",
+      "name": "教学四件套组装",
+      "type": "shared",
+      "description": "选文源+课程结构+教师数据层 → 四件套内容源：编号单一来源映射（案例编号=阅读编号、按课程节顺序）、来源字段统一模板渲染（未提供口径，不补造）、H1 学生/教师信息边界校验、增量加工基线 diff（不破坏已验收指标）。正文由 agent/LLM 按层撰写，骨架可空但占位诚实。",
+      "inputs": [
+        "selected",
+        "records",
+        "courseStructure",
+        "studentDrafts",
+        "teacherLayer",
+        "venue",
+        "year",
+        "baseline",
+        "extraTeacherTokens"
+      ],
+      "required": [
+        "selected"
+      ],
+      "inputSpecs": [
+        {
+          "name": "selected",
+          "kind": "array",
+          "required": true,
+          "hint": "select_research_evidence 输出的 selected [{ recordId, title, section, score?, mustReview? }]",
+          "producer": [
+            "select_research_evidence"
+          ]
+        },
+        {
+          "name": "records",
+          "kind": "array",
+          "required": false,
+          "hint": "记录详情（authors/keywords/physicalPages/printedPage/session/excerpt/commentary/thinkQuestions）：缺省只渲染来源字段，节选/解说标占位"
+        },
+        {
+          "name": "courseStructure",
+          "kind": "object",
+          "required": false,
+          "hint": "design_course_structure 输出（消费 sections[].title 节序）：编号按课程节顺序；缺省按节名出现序",
+          "producer": [
+            "design_course_structure"
+          ]
+        },
+        {
+          "name": "studentDrafts",
+          "kind": "object",
+          "required": false,
+          "hint": "agent 起草的学生产物文本 { slides?, reading?, html? }：送 H1 校验（教师 token 命中即违规）"
+        },
+        {
+          "name": "teacherLayer",
+          "kind": "object",
+          "required": false,
+          "hint": "教师数据层（教学目标/评分锚点/参考答案…）：只进教案，校验目标是不泄漏进学生产物"
+        },
+        {
+          "name": "venue",
+          "kind": "string",
+          "required": false,
+          "hint": "会议/出版物名称（取自摘要集，不假定）"
+        },
+        {
+          "name": "year",
+          "kind": "string",
+          "required": false,
+          "hint": "年份（取自封面/版权页，不假定）"
+        },
+        {
+          "name": "baseline",
+          "kind": "object",
+          "required": false,
+          "hint": "已验收基线指标 { caseCount?, sections? }：增量加工 diff，变化项须显式确认"
+        },
+        {
+          "name": "extraTeacherTokens",
+          "kind": "array",
+          "required": false,
+          "hint": "追加教师专属 token（禁用词表扩展）"
+        }
+      ],
+      "outputs": [
+        "artifacts",
+        "numberingMap",
+        "sourceFields",
+        "violations",
+        "baselineDiff",
+        "notes"
+      ],
+      "dependsOn": [],
+      "degradation": "无 LLM/未起草正文：确定性骨架+占位标记（audit 占位符扫描兜底）；记录详情缺失来源字段标未提供不编造；selected 空 degraded",
+      "docPath": "skills/shared/compose_teaching_artifacts.md",
+      "usage": "选文源+课程结构+教师数据层 → 四件套内容源：编号单一来源（案例=阅读编号、按节序）+ 来源字段渲染 + H1 信息边界校验 + 基线 diff"
+    },
+    {
+      "skillId": "audit_teaching_package",
+      "name": "教学包验收",
+      "type": "shared",
+      "description": "四件套交付前验收链 C1–C8：零外链模式集（豁免内联 SVG/data:）、学生可见禁用词=0、未定稿占位符扫描、跨产物编号覆盖/多余/顺序比对、来源字段未提供口径、原文/解读奇偶配对；编译/写盘/打印/同步为 delegated 程序指引（验证阶梯+bbox 安全线+回滚实测）；输出红线触发清单供停下确认。",
+      "inputs": [
+        "artifacts",
+        "expectedNumbering",
+        "options"
+      ],
+      "required": [
+        "artifacts"
+      ],
+      "inputSpecs": [
+        {
+          "name": "artifacts",
+          "kind": "object",
+          "required": true,
+          "hint": "{ slides?, reading?, html?, lessonPlan? }：字符串、{ text } 或 reading 的 { pages: string[] }（分页文本）"
+        },
+        {
+          "name": "expectedNumbering",
+          "kind": "array",
+          "required": false,
+          "hint": "期望编号数组（compose_teaching_artifacts 的 numberingMap.caseNo）：跨产物覆盖/多余/顺序比对",
+          "producer": [
+            "compose_teaching_artifacts"
+          ]
+        },
+        {
+          "name": "options",
+          "kind": "object",
+          "required": false,
+          "hint": "{ extraForbiddenWords?: string[], pairHints?: { original?, commentary? } }"
+        }
+      ],
+      "outputs": [
+        "report",
+        "redlineTriggers",
+        "passed"
+      ],
+      "dependsOn": [],
+      "degradation": "产物文本未提供的判项 delegated，passed 只统计已执行判项（未验证不冒充通过）；输入非法结构化报错",
+      "docPath": "skills/shared/audit_teaching_package.md",
+      "usage": "四件套交付前验收：C1–C8 验收链——零外链/禁用词/占位符/编号一致/来源口径/配对（纯检查）+ 编译写盘打印同步（delegated 程序指引）+ 红线触发清单"
+    },
+    {
       "skillId": "register_teacher_avatar",
       "name": "教师数字分身注册",
       "type": "specialized",

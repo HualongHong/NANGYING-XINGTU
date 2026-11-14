@@ -70,3 +70,22 @@
 **预期产物**：可执行的制作清单集。
 
 **常见坑**：特化技能当前全部为降级实现（`level: degraded` 属设计预期，不是故障）；接入真实引擎（宿主注入对应 provider 钩子）后自动升级 full。
+
+## 配方 5：科教融合备课——章节 + 会议摘要集 → 四件套
+
+**目标**：给定一门课程的一个章节 + 一本会议摘要集，产出术语统一、可直接上课、可课后阅读复习、附教师教案的四件套（课件 Beamer PDF / 阅读材料 A4 PDF / 课后自测单文件离线 HTML / 教案 PDF）。把摘要集中真正与章节知识点对应的研究按课程位置放到该出现的地方。
+
+**前提**：**纯本地零密钥**，无 LLM 也可跑通（选文退化为核心词直取、四件套退化为确定性骨架+诚实占位）；有 LLM 时词族派生与正文质量显著提升。摘要集 PDF 需有文本层——纯扫描件先声明 OCR 降级（来源字段可核验性降为需人工逐项复核）。分页文本用 pdftotext 直出（`-layout` 与 `-raw` 双模式交叉，错位条目人工校序后照录）。
+
+**调用序列**：
+
+1. `gather_teaching_requirements`：`{ answers: { courseMeta, knowledgeStructure, abstractCollection, …Q1–Q8 }, corrections?: [...] }` → 清单逐项状态 + `stopWork` + 约束登记表。**stopWork=true 时不得进入下一步**——逐项问齐再动手，不预设不猜测；Q1–Q3（题名主讲/知识结构/摘要集）缺失是硬停工。
+2. `parse_abstract_collection`：`{ pages: ["<pdftotext 分页>", …], entryPattern: "^\\d{4}\\s", declaredTotal: <封面自述篇数> }` → 结构化记录 + `pageOffset`（Δ 探测，不写死偏移）+ 缺陷旗标（`title_eats_author`/`cross_page_break` 等）+ 覆盖率。无分页时偏移报 `unavailable`，来源标注只给物理页。
+3. `select_research_evidence`：`{ records: "$parse.records", sections: [{ title, knowledgePoints, keyPoints, confusables }], percentile: 0.2, perSectionMin: 1 }` → 入选 + `mustReview` 标记 + 落选理由 + 复核队列 + 收敛四条件。**mustReview 与全部课堂正文条目必须人工复核**（结论真的对应本节概念？带条件句？数字单位可核验？）；收敛未达时回扩词族/调阈值，不凑数。
+4. `compose_teaching_artifacts`：`{ selected: "$select.selected", records: "$parse.records", courseStructure, venue, year, studentDrafts?, baseline? }` → `numberingMap`（案例=阅读编号、按节序）+ `sourceFields`（统一模板，"未提供"口径）+ 四件套内容源 + `violations`（H1 边界）。正文撰写在宿主侧按层完成：解读页五段式（K4）、易错点三处同表述（K5）、增量加工先备份并 diff 基线（A4）。
+5. `audit_teaching_package`：`{ artifacts: { slides, reading: { pages }, html }, expectedNumbering: "$compose.numberingMap.caseNo" }` → C1–C8 判项 + `redlineTriggers`。**红线触发即停下向用户确认**，不自行决定；编译日志/写盘核验/打印态/定稿同步是 delegated 判项，由宿主按程序指引执行（验证阶梯便宜→昂贵：正则 → node --check → 两遍 xelatex → bbox≥5pt → headless → 目视抽查，前一步不过不进下一步）。
+6. （闭环）验收 fail 项与红线触发经 `submit_feedback`（usage_issue/suggestion）入库，供 loop engineering 监控。
+
+**预期产物**：四件套 PDF/HTML + 编号映射表 + 来源字段表 + 复核记录表（附录 F 落盘，供复盘"为什么选了这篇没选那篇"）。
+
+**常见坑**：① 用户前提与事实不符（"这 6 篇就是全部吧"）——先枚举页脚去重给事实再问口径，不直接执行（红线 M1）；② 编号体系一变联动面 ≥6 处（页脚/案例卡/出处表/导航表/封面/收束）——一次性改全并做覆盖回归（C5）；③ 编译告警突增先归因（模板随页数线性增长属正常，M8）；④ 结论性数字找不到可靠命中就留白注明以教材为准（K2），**宁可少写一条数据，不可编一条关联**。

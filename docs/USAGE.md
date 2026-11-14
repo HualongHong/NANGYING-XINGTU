@@ -128,6 +128,8 @@ pnpm config --clear   # 清除密钥
 
 数据集探查（可选）：`inspect_teaching_dataset` 技能探查 OpenDataLab 数据集仓库（元信息+文件清单+教学相关性评分）；**公共仓库匿名零配置可用**，受限仓库经 settings_card 数据集区块写入 `odlabAccessKeyId`/`odlabSecretAccessKey`（AK/SK 成对，0600），或 `.env` 的 `OPENXLAB_AK`/`OPENXLAB_SK`。
 
+科教融合备课（可选，五技能链，纯本地零密钥）：给定课程章节 + 会议摘要集产四件套（课件 PDF / 阅读材料 A4 PDF / 课后自测离线 HTML / 教案 PDF）——`gather_teaching_requirements`（开工必问 Q1–Q8 + 纠偏登记表，stopWork 时逐项问不预设）→ `parse_abstract_collection`（分页文本/pdftotext 直出：结构化记录 + 页号偏移 Δ 探测 + 抽取缺陷旗标）→ `select_research_evidence`（词族加权评分 + 相对分位阈值 + 覆盖优先 + 复核队列，LLM 在场自动派生词族）→ `compose_teaching_artifacts`（编号单一来源 + 来源字段"未提供"口径 + 学生/教师信息边界校验）→ `audit_teaching_package`（零外链/禁用词/占位符/编号一致/来源口径/奇偶配对纯检查 + 编译写盘 delegated 指引 + 红线触发清单）。详见 [RECIPES.md 配方 5](RECIPES.md)。
+
 **密钥安全策略**（key 生命周期）：
 - 存放：配置目录 `~/.nangying-starmap/`（可用 env `NANGYING_CONFIG_DIR` 覆盖）；`settings.json` 只存非敏感配置（644），`secrets.json` 存命名密钥映射 `{ "apiKey": …, "sciverseApiKey": …, "odlabAccessKeyId": …, "odlabSecretAccessKey": … }`（600；缺省名 `apiKey` 与旧文件兼容；Windows 下 chmod 尽力而为，建议再以文件系统 ACL 收紧目录访问）；
 - 写入：`writeConfig` 入参校验拒绝任何字段名含 key/token/secret/password 的配置；向导与参数模式均不回显 key；

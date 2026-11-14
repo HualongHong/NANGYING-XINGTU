@@ -523,6 +523,91 @@
       "dependsOn": [],
       "degradation": "可选增强不影响主流程；公共仓库匿名可用，受限仓库 401 结构化提示配置 AK/SK；清单失败 degraded 半量返回；评分纯本地确定性",
       "docPath": "skills/shared/inspect_teaching_dataset.md"
+    },
+    "gather_teaching_requirements": {
+      "skillId": "gather_teaching_requirements",
+      "name": "教学需求治理",
+      "type": "shared",
+      "description": "科教融合备课工作流第一步：开工必问 Q1–Q8 校验与停工判定（不预设不猜测）、H/P 约束分层与纠偏登记表（纠偏即登记）、迭代场景沿用并复述与口径变更标注。纯判定零 IO。",
+      "outputs": [
+        "checklist",
+        "stopWork",
+        "blockingMissing",
+        "toCollect",
+        "assumptionsUsed",
+        "constraintRegistry",
+        "replay"
+      ],
+      "dependsOn": [],
+      "degradation": "纯判定零依赖：无 LLM 行为一致；纠偏缺 quote/content 或 layer 非法时拒绝该条并指明原因，其余照常",
+      "docPath": "skills/shared/gather_teaching_requirements.md"
+    },
+    "parse_abstract_collection": {
+      "skillId": "parse_abstract_collection",
+      "name": "摘要集解析",
+      "type": "shared",
+      "description": "会议摘要集 → 结构化记录（题名/作者/单位/关键词/正文/分会场/物理页+印刷页）：页号偏移 Δ 自动探测（恒值/分段/不可用）、entryPattern 条目切分或预切分归一化、抽取缺陷旗标（长题名吃作者行/跨页断裂/关键词混入正文）、解析覆盖率。分页文本由适配层/调用方提供。",
+      "outputs": [
+        "records",
+        "sessions",
+        "pageOffset",
+        "coverage",
+        "defects",
+        "degraded"
+      ],
+      "dependsOn": [],
+      "degradation": "无分页时偏移探测报 unavailable（来源标注只给物理页）；无 entryPattern 且无预切分记录 degraded（只出分会场归属+偏移）；输入非法结构化报错，预切分字段缺失给安全缺省",
+      "docPath": "skills/shared/parse_abstract_collection.md"
+    },
+    "select_research_evidence": {
+      "skillId": "select_research_evidence",
+      "name": "研究例证选文",
+      "type": "shared",
+      "description": "从摘要集记录按章节知识点选研究例证：词族命中加权评分（题名>关键词>正文>单位，权重可配建议值）、相对分位阈值（非绝对分数线）、排除词降权、题名去重、覆盖面约束优先（每节至少 k 条，补入标必复核）、收敛四条件、落选理由留痕与复核记录表。词族可由 LLM 派生，缺 LLM 核心词直取。",
+      "outputs": [
+        "candidates",
+        "selected",
+        "rejected",
+        "reviewQueue",
+        "convergence",
+        "stats"
+      ],
+      "dependsOn": [
+        "llm(可选：词族派生)"
+      ],
+      "degradation": "无 LLM 核心词直取+confusables 排除词，行为可复现仅召回面变窄；零命中返回空选+收敛未达+扩词族指引，不凑数不硬套；输入非法结构化报错",
+      "docPath": "skills/shared/select_research_evidence.md"
+    },
+    "compose_teaching_artifacts": {
+      "skillId": "compose_teaching_artifacts",
+      "name": "教学四件套组装",
+      "type": "shared",
+      "description": "选文源+课程结构+教师数据层 → 四件套内容源：编号单一来源映射（案例编号=阅读编号、按课程节顺序）、来源字段统一模板渲染（未提供口径，不补造）、H1 学生/教师信息边界校验、增量加工基线 diff（不破坏已验收指标）。正文由 agent/LLM 按层撰写，骨架可空但占位诚实。",
+      "outputs": [
+        "artifacts",
+        "numberingMap",
+        "sourceFields",
+        "violations",
+        "baselineDiff",
+        "notes"
+      ],
+      "dependsOn": [],
+      "degradation": "无 LLM/未起草正文：确定性骨架+占位标记（audit 占位符扫描兜底）；记录详情缺失来源字段标未提供不编造；selected 空 degraded",
+      "docPath": "skills/shared/compose_teaching_artifacts.md"
+    },
+    "audit_teaching_package": {
+      "skillId": "audit_teaching_package",
+      "name": "教学包验收",
+      "type": "shared",
+      "description": "四件套交付前验收链 C1–C8：零外链模式集（豁免内联 SVG/data:）、学生可见禁用词=0、未定稿占位符扫描、跨产物编号覆盖/多余/顺序比对、来源字段未提供口径、原文/解读奇偶配对；编译/写盘/打印/同步为 delegated 程序指引（验证阶梯+bbox 安全线+回滚实测）；输出红线触发清单供停下确认。",
+      "outputs": [
+        "report",
+        "redlineTriggers",
+        "passed"
+      ],
+      "dependsOn": [],
+      "degradation": "产物文本未提供的判项 delegated，passed 只统计已执行判项（未验证不冒充通过）；输入非法结构化报错",
+      "docPath": "skills/shared/audit_teaching_package.md"
     }
   }
 }

@@ -4,6 +4,18 @@
 
 ## [Unreleased]（1.8.0 预备）
 
+R20 迭代：科教融合备课工作流——由真实备课实践（基础生态学 4 轮 / 土壤学 7 轮，经验沉淀于 dev-docs/feedback/20261115，本地不入库）蒸馏出 5 个新共享技能，组成「章节 + 会议摘要集 → 四件套」全链：需求治理 → 摘要集解析 → 研究例证选文 → 四件套组装 → 教学包验收。纯本地零密钥，无 LLM 可跑通（降级骨架 + 诚实占位）。测试 506 → 559。
+
+### Added
+
+- **`gather_teaching_requirements` 教学需求治理（第 27 个共享技能）**：开工必问 Q1–Q8 校验与三档停工判定（Q1–Q3 缺则硬停工不编造 / Q4 默认须复述 / Q5–Q8 逐项问不预设）；H/P 约束分层（auto 信号判定，拿不准归 P）与约束登记表（附录 B 字段，「纠偏即登记」）；迭代场景「沿用并复述」（carriedOver/confirmedCarryOver）与口径变更标注（changed）。`core/course/gatherTeachingRequirements.ts` 纯判定零 IO。
+- **`parse_abstract_collection` 摘要集解析（第 28 个共享技能）**：分页文本（pdftotext 直出，`\f` 自动切段）→ 结构化记录（题名/作者/单位/关键词/正文/分会场/物理页+印刷页）；**页号偏移 Δ 自动探测**（恒值/罗马前言分段/样本不足 unavailable——不写死偏移量）；entryPattern 条目切分（编号前缀剥离）或预切分归一化；抽取缺陷旗标（title_eats_author/cross_page_break/keywords_in_body/affiliation_missing/title_missing）；解析覆盖率（差额如实报告不强行补齐）。独立页码行剥离防正文污染。
+- **`select_research_evidence` 研究例证选文（第 29 个共享技能）**：词族命中加权评分（题名>关键词>正文>单位，权重可配建议值）、**相对分位阈值**（非绝对分数线）、排除词降权留痕、题名规范化去重（簇内保留高分）、覆盖面约束优先（每节至少 k 条，低于阈值补入标 mustReview）、收敛四条件（重点覆盖/节落位/无重复/来源齐全，不凑数下限）、落选理由 + 复核记录表（附录 F）。词族缺省启发式直取（core=知识点标签），ctx.llm 在场自动派生并入（失败回落并标注）。
+- **`compose_teaching_artifacts` 教学四件套组装（第 30 个共享技能）**：选文源+课程结构+教师数据层 → 四件套内容源；**编号单一来源**（案例编号=阅读编号、按课程节顺序，方法论 3.10 口径）；来源字段统一模板渲染（7.3：`[阅读编号 NN] 作者. 题名. 会议, 年份: 印刷页 P（分会场；PDF 第 P+Δ 页）. 链接或 DOI：未提供.`，缺失一律未提供不补造）；H1 学生/教师信息边界校验（教师 token 命中学生产物即违规列出）；增量加工基线 diff（A4 不破坏已验收指标）。正文 agent 按层撰写，骨架可空但占位诚实。
+- **`audit_teaching_package` 教学包验收（第 31 个共享技能）**：C1–C8 验收链的纯检查侧——零外链模式集（豁免内联 SVG `url(#id)`/`data:`）、学生可见禁用词=0（教案不受约束）、未定稿占位符扫描、跨产物编号覆盖/多余/顺序比对、来源字段「未提供/DOI」口径、原文/解读奇偶配对（双面印发相邻）；编译日志/写盘核验/打印态/定稿同步为 delegated 判项 + 程序指引（验证阶梯、bbox≥5pt 安全线、F08/F09 陷阱）；输出**红线触发清单**（M 章编号），触发即停下向用户确认。passed 只统计已执行判项（未验证不冒充通过）。
+- **配方与文档**：`docs/RECIPES.md` 新增配方 5（科教融合四件套工作流：调用序列 + 预期产物 + 4 条常见坑）；`docs/USAGE.md` 配置章补五技能链说明；README/SKILLS/ARCHITECTURE 计数与目录同步（26→31 共享，33→38 总数）。
+- **反馈闭环联动（文档级）**：验收 fail 项与红线触发经 `submit_feedback`（usage_issue/suggestion）入库，供 loop engineering 指标监控；本迭代不改反馈代码。
+
 R19 迭代：OpenDataLab 数据集探查——`inspect_teaching_dataset` 技能（第 26 个共享技能）探查数据集仓库元信息+文件清单并给教学相关性评分；公共仓库匿名零配置可用，AK/SK 成对解锁受限仓库。
 
 ### Added
@@ -29,6 +41,7 @@ R16 迭代：反馈闭环——`submit_feedback` 技能（默认脱敏 + 审阅�
 R17 迭代：设置卡片——`settings_card` 技能按平台政策渲染 API key/连接端口设置卡片（六 agent 平台端口自动隐藏、密钥永不回显）。测试 464 → 471。
 R18 迭代：OpenDataLab 体系对接——`adapters/odlab/` 对接层（MinerU 双档解析 + SciVerse 学术证据技能 + DianShi/数据集预留位），新共享技能 `enrich_knowledge_evidence`。测试 471 → 493。
 R19 迭代：OpenDataLab 数据集探查——新共享技能 `inspect_teaching_dataset`（公共仓库匿名零配置可探查 + AK/SK 解锁受限仓库 + 四级降级）。测试 493 → 506。
+R20 迭代：科教融合备课工作流——新共享技能×5（需求治理/摘要集解析/选文/四件套组装/教学包验收），章节+摘要集→四件套全链。测试 506 → 559。
 
 ### Added
 

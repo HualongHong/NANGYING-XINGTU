@@ -63,6 +63,16 @@ import {
   normalizeInfo,
   scoreTeachingRelevance,
 } from '../../core/dataset/inspectDataset.js';
+import { buildRequirementsReport } from '../../core/course/gatherTeachingRequirements.js';
+import { parseAbstractCollection } from '../../core/nlp/parseAbstractCollection.js';
+import {
+  deriveTermFamiliesHeuristic,
+  mergeTermFamilies,
+  planSelection,
+  selectEvidence,
+} from '../../core/evidence/selectEvidence.js';
+import { composeTeachingArtifacts } from '../../core/course/composeTeachingArtifacts.js';
+import { auditTeachingPackage } from '../../core/qa/auditTeachingPackage.js';
 import type { AdapterBase } from './adapter.base.js';
 import registry from '../../manifests/skills.registry.json' with { type: 'json' };
 
@@ -101,6 +111,11 @@ const IMPLEMENTED_SKILLS = [
   'settings_card',
   'enrich_knowledge_evidence',
   'inspect_teaching_dataset',
+  'gather_teaching_requirements',
+  'parse_abstract_collection',
+  'select_research_evidence',
+  'compose_teaching_artifacts',
+  'audit_teaching_package',
 ] as const;
 
 type ImplementedSkillId = (typeof IMPLEMENTED_SKILLS)[number];
@@ -1549,6 +1564,153 @@ const rawExecutors: Record<
       },
     };
   },
+  // 教学需求治理：开工必问 Q1–Q8 校验/停工判定 + H/P 约束登记表（方法论 0.3/1.3 纠偏即登记），纯判定零 IO
+  gather_teaching_requirements: async (inputs) => {
+    const result = buildRequirementsReport(inputs);
+    if ('error' in result) {
+      return {
+        skillId: 'gather_teaching_requirements' as const,
+        level: 'unavailable' as const,
+        errorCode: 'INVALID_INPUT' as const,
+        degradationNote: `输入校验失败：${result.error}`,
+        example: '{ "answers": { "courseMeta": "课程·章节·主讲", "knowledgeStructure": {…}, "abstractCollection": "…" } }',
+      };
+    }
+    return { skillId: 'gather_teaching_requirements', level: 'full' as const, degradationNote: '', data: result };
+  },
+  // 摘要集解析：分页文本 → 结构化记录 + 页号偏移 Δ 探测（方法论 3.3/3.4/3.8；分页由调用方/pdftotext 提供）
+  parse_abstract_collection: async (inputs, ctx) => {
+    const fail = (errorCode: 'INVALID_INPUT' | 'FILE_ERROR', degradationNote: string) => ({
+      skillId: 'parse_abstract_collection' as const,
+      level: 'unavailable' as const,
+      errorCode,
+      degradationNote,
+      example: '{ "materialFile": "/data/摘要集.pdf", "entryPattern": "^\\\\d{4}\\\\s", "declaredTotal": 1024 }',
+    });
+    let pages = inputs.pages;
+    let content = inputs.content;
+    let decodeNote = '';
+    if (!Array.isArray(pages) && typeof content !== 'string') {
+      const mf = inputs.materialFile;
+      if (typeof mf === 'object' && mf !== null && !Array.isArray(mf)) {
+        if (Array.isArray((mf as { pages?: unknown }).pages)) pages = (mf as { pages: unknown[] }).pages;
+        else if (typeof (mf as { content?: unknown }).content === 'string') content = (mf as { content: string }).content;
+      } else if (typeof mf === 'string') {
+        const resolved = await resolveParseInput(mf, ctx, inputs.workspaceRoot, undefined);
+        if (!resolved.ok) {
+          const r = resolved.result;
+          return {
+            skillId: 'parse_abstract_collection' as const,
+            level: 'unavailable' as const,
+            errorCode: (r.errorCode as 'INVALID_INPUT' | 'FILE_ERROR' | undefined) ?? 'FILE_ERROR',
+            degradationNote: r.degradationNote,
+            example: '{ "materialFile": "/data/摘要集.pdf" }',
+          };
+        }
+        content = resolved.content;
+        if (resolved.ocr && !resolved.ocr.textLayer) decodeNote = '经 OCR 解码：来源字段可核验性降级为需人工逐项复核（扫描件纪律）';
+      } else {
+        return fail('INVALID_INPUT', 'pages（分页文本数组）/content（纯文本）/materialFile（路径或已解码对象）至少提供其一');
+      }
+    }
+    const result = parseAbstractCollection({
+      pages,
+      content,
+      records: inputs.records,
+      entryPattern: inputs.entryPattern,
+      sessionHints: inputs.sessionHints,
+      declaredTotal: inputs.declaredTotal,
+    });
+    if ('error' in result) return fail('INVALID_INPUT', `输入校验失败：${result.error}`);
+    const notes = [...result.notes, decodeNote].filter(Boolean);
+    return {
+      skillId: 'parse_abstract_collection',
+      level: result.degraded ? ('degraded' as const) : ('full' as const),
+      degradationNote: notes.join('；'),
+      data: result,
+    };
+  },
+  // 研究例证选文：词族加权评分 + 相对分位阈值 + 覆盖优先 + 收敛四条件（方法论 3.5–3.7）；LLM 在场自动派生词族
+  select_research_evidence: async (inputs, ctx) => {
+    const fail = (degradationNote: string) => ({
+      skillId: 'select_research_evidence' as const,
+      level: 'unavailable' as const,
+      errorCode: 'INVALID_INPUT' as const,
+      degradationNote,
+      example: '{ "records": "$parse_abstract_collection.records", "sections": [{ "title": "3.1 …", "knowledgePoints": ["…"] }] }',
+    });
+    const plan = planSelection(inputs);
+    if (!plan.ok) return fail(`输入校验失败：${plan.error}`);
+    if (!Array.isArray(inputs.records) || inputs.records.length === 0) {
+      return fail('records 必填：parse_abstract_collection 输出的结构化记录数组（非空）');
+    }
+    let families = Array.isArray(inputs.families) ? inputs.families : undefined;
+    let note = '';
+    if (!families && ctx?.llm) {
+      try {
+        const prompt =
+          '为下列课程各节派生学术检索词族，只输出 JSON 数组（元素按 section 与输入节名精确对齐）：' +
+          '[{"section":"节名","core":["核心词：覆盖该节全部知识点标签"],"expansion":["同义/上下位/过程名/测量量/方法名"],"exclusion":["同名异义排除词"]}]\n' +
+          `章节与知识点：${JSON.stringify(plan.sections)}`;
+        const raw = (await ctx.llm.complete(prompt, { temperature: 0.3 })).trim();
+        const parsed = JSON.parse(raw);
+        const merged = mergeTermFamilies(deriveTermFamiliesHeuristic(plan.sections), parsed);
+        families = merged.families;
+        note = merged.note;
+      } catch {
+        note = 'LLM 词族派生失败：回落核心词直取（可用 families 入参手工补充扩展词）';
+      }
+    }
+    const result = selectEvidence({ ...inputs, ...(families ? { families } : {}) });
+    if ('error' in result) return fail(`输入校验失败：${result.error}`);
+    return {
+      skillId: 'select_research_evidence',
+      level: 'full' as const,
+      degradationNote: note,
+      data: { ...result, ...(note ? { termFamilyNote: note } : {}) },
+    };
+  },
+  // 教学四件套组装：编号单一来源 + 来源字段渲染 + H1 信息边界校验 + 基线 diff（方法论 3.10/4.1/7.3/A4）
+  compose_teaching_artifacts: async (inputs) => {
+    const result = composeTeachingArtifacts(inputs);
+    if ('error' in result) {
+      return {
+        skillId: 'compose_teaching_artifacts' as const,
+        level: 'unavailable' as const,
+        errorCode: 'INVALID_INPUT' as const,
+        degradationNote: `输入校验失败：${result.error}`,
+        example: '{ "selected": "$select_research_evidence.selected", "records": "$parse_abstract_collection.records" }',
+      };
+    }
+    return {
+      skillId: 'compose_teaching_artifacts',
+      level: result.degraded ? ('degraded' as const) : ('full' as const),
+      degradationNote: result.notes.join('；'),
+      data: result,
+    };
+  },
+  // 教学包验收：C1–C8 纯检查（零外链/禁用词/占位符/编号一致/来源口径/配对）+ delegated 程序指引 + 红线触发清单
+  audit_teaching_package: async (inputs) => {
+    const result = auditTeachingPackage(inputs);
+    if ('error' in result) {
+      return {
+        skillId: 'audit_teaching_package' as const,
+        level: 'unavailable' as const,
+        errorCode: 'INVALID_INPUT' as const,
+        degradationNote: `输入校验失败：${result.error}`,
+        example: '{ "artifacts": { "slides": { "text": "…" }, "html": "…" }, "expectedNumbering": ["01","02"] }',
+      };
+    }
+    const failed = result.report.filter((r) => r.verdict === 'fail');
+    return {
+      skillId: 'audit_teaching_package',
+      level: result.passed ? ('full' as const) : ('degraded' as const),
+      degradationNote: result.passed
+        ? ''
+        : `验收未过：${failed.map((r) => r.id).join('、')}${result.redlineTriggers.length > 0 ? `；红线触发 ${result.redlineTriggers.length} 项，须停下向用户确认` : ''}`,
+      data: result,
+    };
+  },
   describe_capabilities: async (inputs) => {
     const { skillId } = inputs as { skillId?: string };
     const all = (registry as { skills: SkillDescriptor[] }).skills;
@@ -1678,6 +1840,21 @@ const executors: Record<
   inspect_teaching_dataset: guarded('inspect_teaching_dataset', [
     { name: 'repo', kind: 'string', hint: 'OpenDataLab 数据集仓库地址 "username/repo_name"，如 OpenDataLab/UniTE（公共仓库匿名可探查）' },
   ], rawExecutors.inspect_teaching_dataset),
+  // 规格留空：全部入参可选（缺答项由 raw 如实标注，corrections 条件必填由 core 守卫）
+  gather_teaching_requirements: guarded('gather_teaching_requirements', [], rawExecutors.gather_teaching_requirements),
+  // 规格留空：pages/content/materialFile 三选一由 raw 守卫
+  parse_abstract_collection: guarded('parse_abstract_collection', [], rawExecutors.parse_abstract_collection),
+  // families 可 LLM 派生故留空；records/sections 为契约必填，guarded 先行校验
+  select_research_evidence: guarded('select_research_evidence', [
+    { name: 'records', kind: 'array', hint: 'parse_abstract_collection 输出的结构化记录数组（非空）' },
+    { name: 'sections', kind: 'array', hint: '[{ title, knowledgePoints, keyPoints?, confusables?, declaredNoHit? }]' },
+  ], rawExecutors.select_research_evidence),
+  compose_teaching_artifacts: guarded('compose_teaching_artifacts', [
+    { name: 'selected', kind: 'array', hint: 'select_research_evidence 输出的 selected 数组' },
+  ], rawExecutors.compose_teaching_artifacts),
+  audit_teaching_package: guarded('audit_teaching_package', [
+    { name: 'artifacts', kind: 'object', hint: '{ slides?, reading?, html?, lessonPlan? }：文本或 reading 的 { pages }' },
+  ], rawExecutors.audit_teaching_package),
   describe_capabilities: guarded('describe_capabilities', [], rawExecutors.describe_capabilities),
   generate_assessment: guarded('generate_assessment', [
     { name: 'graph', kind: 'object', hint: 'extract_knowledge_graph 或 fuse_knowledge_graphs 的输出（含 entities 数组）' },

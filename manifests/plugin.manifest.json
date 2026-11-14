@@ -36,7 +36,12 @@
       "submit_feedback",
       "settings_card",
       "enrich_knowledge_evidence",
-      "inspect_teaching_dataset"
+      "inspect_teaching_dataset",
+      "gather_teaching_requirements",
+      "parse_abstract_collection",
+      "select_research_evidence",
+      "compose_teaching_artifacts",
+      "audit_teaching_package"
     ],
     "specialized": [
       "register_teacher_avatar",

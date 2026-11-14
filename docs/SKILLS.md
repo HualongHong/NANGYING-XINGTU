@@ -1,6 +1,6 @@
 # 技能速查表
 
-共 33 个技能：共享型 26 个（平台无关）+ 特化型 7 个（可降级）。
+共 38 个技能：共享型 31 个（平台无关）+ 特化型 7 个（可降级）。
 
 ## 共享型技能
 
@@ -32,6 +32,11 @@
 | settings_card | 设置卡片 | render 卡片 → 用户填写 → apply 入库（密钥永不回显） | 输入非法拒写入；未识别平台走保守政策 |
 | enrich_knowledge_evidence | 学术证据增强 | 图谱/查询 → SciVerse 逐实体检索 → academicEvidence 合并回图谱 | 平台不可用 degraded 原样回传，证据后补 |
 | inspect_teaching_dataset | 教学数据集探查 | repo → 元信息+文件清单+教学相关性评分 | 公共仓库匿名可用；受限仓库提示配 AK/SK；失败不影响主流程 |
+| gather_teaching_requirements | 教学需求治理 | Q1–Q8 回答/纠偏 → 停工判定+约束登记表+沿用复述 | 纯判定零依赖；纠偏缺字段拒该条，其余照常 |
+| parse_abstract_collection | 摘要集解析 | 分页文本/条目正则 → 结构化记录+页号偏移 Δ+缺陷旗标 | 无分页偏移报 unavailable；无切分模式 degraded 只出分会场+偏移 |
+| select_research_evidence | 研究例证选文 | 记录+章节知识点 → 加权评分+相对分位入选+复核队列+收敛四条件 | 无 LLM 核心词直取；零命中返回空选+扩词族指引，不凑数 |
+| compose_teaching_artifacts | 教学四件套组装 | 选文+课程结构 → 编号映射+来源字段+四件套内容源 | 无正文确定性骨架+占位诚实；记录缺失标未提供不编造 |
+| audit_teaching_package | 教学包验收 | 四件套文本+期望编号 → C1–C8 判项+红线触发清单 | 缺文本判项 delegated；passed 只统计已执行判项 |
 
 ## 特化型技能
 

@@ -196,6 +196,8 @@ function looksLikeAuthorLine(line: string): boolean {
   return segs.length >= 2;
 }
 
+const PURE_NAME_RE = /^[一-龥·.'-]{2,5}$/;
+
 /** 单条切分：关键词行 → 单位行 → 作者行 → 题名 → 正文，缺陷旗标同步打 */
 function segmentFields(entryLines: LineRef[]): Omit<AbstractRecord, 'id' | 'session' | 'physicalPages' | 'printedPage'> {
   const defects: string[] = [];
@@ -221,7 +223,8 @@ function segmentFields(entryLines: LineRef[]): Omit<AbstractRecord, 'id' | 'sess
   } else {
     defects.push('affiliation_missing');
   }
-  const authIdx = lines.findIndex((l, i) => !consumed.has(i) && looksLikeAuthorLine(l));
+  // 作者行：多人分隔行，或题名之后紧邻的单个纯姓名行（单作者情形；i≥1 防题名自匹配）
+  const authIdx = lines.findIndex((l, i) => i >= 1 && !consumed.has(i) && (looksLikeAuthorLine(l) || (i <= 2 && PURE_NAME_RE.test(l.trim()))));
   if (authIdx >= 0) {
     authors = lines[authIdx].split(/[,，、;；]+/).map((s) => s.trim()).filter(Boolean);
     consumed.add(authIdx);
@@ -250,6 +253,11 @@ function segmentFields(entryLines: LineRef[]): Omit<AbstractRecord, 'id' | 'sess
   };
 }
 
+/** 条目内的分会场标题行（结构行，用于归属后不进入正文/字段） */
+function isSessionHeading(text: string, hints: string[]): boolean {
+  return text.length < 40 && hints.some((h) => h && text.toLowerCase().includes(h.toLowerCase()));
+}
+
 /** 自动切分路径：entryPattern 命中行为条目起点，跨页条目合并并记录物理页区间 */
 export function splitRecords(
   pages: string[],
@@ -269,7 +277,9 @@ export function splitRecords(
   entryPattern.lastIndex = 0;
   const records: AbstractRecord[] = [];
   starts.forEach((s, i) => {
-    const entryLines = allLines.slice(s, i + 1 < starts.length ? starts[i + 1] : undefined);
+    const entryLines = allLines
+      .slice(s, i + 1 < starts.length ? starts[i + 1] : undefined)
+      .filter((l) => !isSessionHeading(l.text.trim(), sessionHints));
     const first = entryLines[0];
     if (!first) return;
     // 条目首行通常「编号+题名」同行：剥掉 entryPattern 命中前缀再进字段切分

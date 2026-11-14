@@ -187,7 +187,7 @@ const { LocalAdapter } = await import('../dist/adapters/core/local.adapter.js');
 const { registerSharedSkills } = await import('../dist/adapters/core/executors.js');
 const adapter = new LocalAdapter();
 registerSharedSkills(adapter, { llm }); // 注入真实 LLM，术语度过滤随之启用
-const DIR = 'testfiles/生物化学实验';
+const DIR = 'dev-docs/testfiles/生物化学实验';
 const strip = (t) => t.split('\n').filter((l) => !/^===\s*第\d+页\s*===$/.test(l.trim())).join('\n');
 const pdfDir = join(DIR, '_pdf');
 const units = [];

@@ -1,0 +1,24 @@
+{
+  "chapter": "第 6 章 生态系统生态学",
+  "note": "示例章节知识结构（原创虚构 · CC0）：select_research_evidence 的 sections 入参；与 examples/摘要集-青年生态学论坛.txt 内容呼应",
+  "sections": [
+    {
+      "title": "6.1 群落稳定性",
+      "knowledgePoints": ["群落稳定性", "物种异步性"],
+      "keyPoints": ["群落稳定性"],
+      "confusables": ["种群波动"]
+    },
+    {
+      "title": "6.2 土壤有机质",
+      "knowledgePoints": ["土壤有机质", "凋落物分解"],
+      "keyPoints": ["土壤有机质"],
+      "confusables": ["土壤矿物"]
+    },
+    {
+      "title": "6.3 生态系统服务",
+      "knowledgePoints": ["生态系统服务", "生物多样性"],
+      "keyPoints": ["生态系统服务"],
+      "confusables": ["生态产品"]
+    }
+  ]
+}

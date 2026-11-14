@@ -83,7 +83,8 @@ function purgeExpired(): void {
       if (!f.endsWith('.json')) continue;
       try {
         const s = JSON.parse(readFileSync(join(jobsDir(), f), 'utf8')) as JobSnapshot;
-        const age = Date.now() - new Date(s.submittedAt).getTime();
+        if (!isTerminal(s.status)) continue;
+        const age = Date.now() - new Date(s.updatedAt ?? s.submittedAt).getTime();
         if (age > RETENTION_MS) unlinkSync(join(jobsDir(), f));
       } catch { /* 读不了的快照跳过 */ }
     }
@@ -167,9 +168,9 @@ export function submitJob(
 
 /** 查询：内存优先；未命中读磁盘（running 快照 → interrupted，耗时冻结不再增长） */
 export function getJob(jobId: string): JobSnapshot | null {
-  purgeExpired();
   const entry = memory.get(jobId);
   if (entry) return { ...entry.snapshot };
+  purgeExpired();
   const file = jobFile(jobId);
   if (!existsSync(file)) return null;
   try {
@@ -215,6 +216,7 @@ export function listJobs(): JobSnapshot[] {
 export function cancelJob(jobId: string): JobSnapshot | null {
   const entry = memory.get(jobId);
   if (entry) {
+    if (isTerminal(entry.snapshot.status)) return { ...entry.snapshot };
     entry.controller.abort();
     entry.snapshot.status = 'cancelled';
     freezeElapsed(entry.snapshot, Date.now());
@@ -223,11 +225,15 @@ export function cancelJob(jobId: string): JobSnapshot | null {
   }
   const file = jobFile(jobId);
   if (!existsSync(file)) return null;
-  const s = JSON.parse(readFileSync(file, 'utf8')) as JobSnapshot;
-  if (s.status === 'running') {
-    return { ...s, elapsedMs: frozenElapsed(s), status: 'interrupted', error: 'server 重启，无法取消；请重新提交' };
+  try {
+    const s = JSON.parse(readFileSync(file, 'utf8')) as JobSnapshot;
+    if (s.status === 'running') {
+      return { ...s, elapsedMs: frozenElapsed(s), status: 'interrupted', error: 'server 重启，无法取消；请重新提交' };
+    }
+    return s; // 已终态，无需取消
+  } catch {
+    return null;
   }
-  return s; // 已终态，无需取消
 }
 
 /** 终态判断（cleanup 用） */

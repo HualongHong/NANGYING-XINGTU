@@ -65,12 +65,12 @@ describe('R7-4 qa_media：字幕时间轴静态检查（纯函数，永远可用
 });
 
 describe('R7-4 qa_media：适配器（引擎门控）', () => {
-  it('纯字幕检查（无 mediaFile）：引擎可用 full，回绕/重叠进 findings', async () => {
+  it('纯字幕检查（无 mediaFile）：无引擎也能降级返回 findings', async () => {
     const adapter = new LocalAdapter();
     const r = await adapter.invokeSkill('qa_media', {
       inputs: { subtitles: '1\n00:00:03,000 --> 00:00:01,000\n回绕\n\n2\n00:00:02,000 --> 00:00:04,000\n重叠' },
     });
-    expect(r.level).toBe('full');
+    expect(r.level).toBe(await probeFfmpegAvailable() ? 'full' : 'degraded');
     const data = r.data as { findings: Array<{ type: string }>; cueCount: number };
     expect(data.cueCount).toBe(2);
     expect(data.findings.some((f) => f.type === 'subtitle_wrap')).toBe(true);

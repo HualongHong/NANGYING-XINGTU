@@ -227,6 +227,32 @@ describe('R9-3 recommend targetOccupation（缺口倒排；缺省行为不变）
     expect(r.degradationNote).toContain('GLP 规范');
   });
 
+  it('岗位重排先于预算截断，目标概念不会被无关节点挤掉', async () => {
+    const graph = courseGraph();
+    graph.prerequisiteGraph.topoOrder = ['con-3', 'con-1', 'con-2'];
+    const r = await recommendLearningPath({
+      graph,
+      profile: { availableMinutes: 10 },
+      targetOccupation: '体外诊断试剂研发工程师',
+      industryGraph: await industryGraphOf(),
+    });
+    expect(r.data!.learningSequence).toEqual(['con-1', 'con-2']);
+    expect(r.data!.coverage.truncatedByBudget).toBe(true);
+  });
+
+  it('LLM 理由失败时保留岗位说明，不输出未插值模板', async () => {
+    const r = await recommendLearningPath({
+      graph: courseGraph(),
+      profile: {},
+      targetOccupation: '体外诊断试剂研发工程师',
+      industryGraph: await industryGraphOf(),
+    }, { llm: { complete: async () => '非JSON' } });
+    expect(r.level).toBe('degraded');
+    expect(r.degradationNote).toContain('LLM 理由生成失败');
+    expect(r.degradationNote).toContain('目标岗位');
+    expect(r.degradationNote).not.toContain('${');
+  });
+
   it('适配器端到端（含字段别名 industryGraph 透传）', async () => {
     const adapter = new LocalAdapter();
     const industry = await adapter.invokeSkill('build_industry_graph', { inputs: { sections: INDUSTRY_SECTIONS } });

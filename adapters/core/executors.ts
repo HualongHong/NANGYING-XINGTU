@@ -1065,17 +1065,17 @@ const rawExecutors: Record<
     const wantSub = checks?.subtitles !== false;
     const wantKeyframes = checks?.keyframes !== false;
     const wantSilence = checks?.silence !== false;
-    const subFindings = wantSub && typeof subtitles === 'string' && subtitles.trim()
-      ? auditSubtitleTimeline(parseSrt(subtitles))
-      : [];
-    const cueCount = wantSub && typeof subtitles === 'string' ? parseSrt(subtitles).length : undefined;
+    const hasSubtitleInput = wantSub && typeof subtitles === 'string' && subtitles.trim().length > 0;
+    const cues = wantSub && typeof subtitles === 'string' ? parseSrt(subtitles) : [];
+    const subFindings = hasSubtitleInput ? auditSubtitleTimeline(cues) : [];
+    const cueCount = wantSub && typeof subtitles === 'string' ? cues.length : undefined;
 
     const { probeFfmpegAvailable, ffprobeMeta, detectSilence, sceneKeyframes } = await import('./mediaProbe.js');
     const hasEngine = await probeFfmpegAvailable();
 
     if (!hasEngine) {
       const hint = '安装 ffmpeg 并加入 PATH（https://ffmpeg.org/download.html 或 winget install ffmpeg）';
-      if (!mediaFile) {
+      if (!mediaFile && !hasSubtitleInput) {
         return {
           skillId: 'qa_media',
           level: 'unavailable',
@@ -1086,9 +1086,9 @@ const rawExecutors: Record<
       }
       const report = finalizeReport({ engine: 'none' as const, findings: subFindings, cueCount });
       return {
-        ...report,
         skillId: 'qa_media',
         level: 'degraded' as const,
+        data: report,
         degradationNote: `未检测到 ffmpeg/ffprobe：仅完成字幕时间轴静态检查（引擎检查已跳过）。${hint}`,
       };
     }

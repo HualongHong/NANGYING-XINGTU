@@ -180,20 +180,27 @@ export async function fuseKnowledgeGraphs(
   }
 
   const uf = new UnionFind();
+  const normByLabel = new Map<string, string>();
   const byNorm = new Map<string, SourceEntity[]>();
   for (const e of allEntities) {
-    const key = normalizeLabel(e.label);
+    const key = normByLabel.get(e.label) ?? normalizeLabel(e.label);
+    normByLabel.set(e.label, key);
     // 阶梯 1：归一化相等
-    for (const other of byNorm.get(key) ?? []) uf.union(e.label, other.label);
-    byNorm.set(key, [...(byNorm.get(key) ?? []), e]);
-    // 阶梯 2：互为子串（与 extract 归并同思路，标签级）
-    for (const other of allEntities) {
-      if (other.label === e.label) continue;
-      const a = normalizeLabel(e.label);
-      const b = normalizeLabel(other.label);
+    const matches = byNorm.get(key);
+    if (matches) {
+      for (const other of matches) uf.union(e.label, other.label);
+      matches.push(e);
+    } else {
+      byNorm.set(key, [e]);
+    }
+  }
+  // 阶梯 2：互为子串。跨来源重复标签只比较一次，并复用归一化结果。
+  for (const [label, a] of normByLabel) {
+    for (const [otherLabel, b] of normByLabel) {
+      if (label === otherLabel) continue;
       if (a.length >= 2 && b.length >= 2 && a !== b &&
           (a.includes(b) || b.includes(a))) {
-        uf.union(e.label, other.label);
+        uf.union(label, otherLabel);
       }
     }
   }
@@ -221,7 +228,9 @@ export async function fuseKnowledgeGraphs(
   const groups = new Map<string, SourceEntity[]>(); // root -> members
   for (const e of allEntities) {
     const root = uf.find(e.label);
-    groups.set(root, [...(groups.get(root) ?? []), e]);
+    const members = groups.get(root);
+    if (members) members.push(e);
+    else groups.set(root, [e]);
   }
   const canonicalOf = new Map<string, string>(); // label -> canonical
   const alignedGroups: AlignedGroup[] = [];
@@ -266,8 +275,8 @@ export async function fuseKnowledgeGraphs(
   for (let i = 0; i < labels.length; i++) {
     for (let j = i + 1; j < labels.length; j++) {
       if (uf.find(labels[i]) === uf.find(labels[j])) continue;
-      const ni = normalizeLabel(labels[i]);
-      const nj = normalizeLabel(labels[j]);
+      const ni = normByLabel.get(labels[i])!;
+      const nj = normByLabel.get(labels[j])!;
       // 收紧判据：前后缀至少 3 字重合才列入冲突候选（2 字噪声大）
       if (commonPrefixLen(ni, nj) >= 3 || commonSuffixLen(ni, nj) >= 3) {
         crossSourcePairs.push([labels[i], labels[j]] as const);
@@ -276,13 +285,19 @@ export async function fuseKnowledgeGraphs(
   }
 
   const conflictSeen = new Set<string>();
+  const sourcesByLabel = new Map<string, Set<string>>();
+  for (const e of allEntities) {
+    const sourceIds = sourcesByLabel.get(e.label) ?? new Set<string>();
+    sourceIds.add(sources[e.sourceIdx].id);
+    sourcesByLabel.set(e.label, sourceIds);
+  }
   const pushConflict = (ls: string[], reason: string) => {
     const key = [...ls].sort().join('|');
     if (conflictSeen.has(key)) return;
     conflictSeen.add(key);
     const srcSet = new Set<string>();
     for (const l of ls) {
-      for (const e of allEntities) if (e.label === l) srcSet.add(sources[e.sourceIdx].id);
+      for (const source of sourcesByLabel.get(l) ?? []) srcSet.add(source);
     }
     conflicts.push({ labels: [...ls].sort((a, b) => a.localeCompare(b, 'zh')), sources: [...srcSet].sort(), reason });
   };
@@ -314,13 +329,31 @@ export async function fuseKnowledgeGraphs(
       }
       // 应用 LLM 归并
       for (const [a, b] of mergedPairs) {
-        const known = allEntities.some((e) => e.label === a) && allEntities.some((e) => e.label === b);
+        const known = normByLabel.has(a) && normByLabel.has(b);
         if (!known) continue;
         uf.union(a, b);
         const ca = canonicalOf.get(a)!;
         const cb = canonicalOf.get(b)!;
         const keep = ca.length <= cb.length ? ca : cb;
         for (const [l, c] of canonicalOf) if (c === ca || c === cb) canonicalOf.set(l, keep);
+        const groupA = alignedGroups.find((g) => g.canonicalLabel === ca);
+        const groupB = alignedGroups.find((g) => g.canonicalLabel === cb);
+        if (groupA && groupB && groupA !== groupB) {
+          const sourceDistribution = { ...groupA.sourceDistribution };
+          for (const [source, count] of Object.entries(groupB.sourceDistribution)) {
+            sourceDistribution[source] = (sourceDistribution[source] ?? 0) + count;
+          }
+          const mergedGroup: AlignedGroup = {
+            canonicalLabel: keep,
+            memberLabels: [...new Set([...groupA.memberLabels, ...groupB.memberLabels])]
+              .sort((x, y) => x.localeCompare(y, 'zh')),
+            sourceDistribution,
+          };
+          for (let i = alignedGroups.length - 1; i >= 0; i -= 1) {
+            if (alignedGroups[i] === groupA || alignedGroups[i] === groupB) alignedGroups.splice(i, 1);
+          }
+          alignedGroups.push(mergedGroup);
+        }
         const idx = conflicts.findIndex((c) => c.labels.includes(a) && c.labels.includes(b));
         if (idx >= 0) conflicts.splice(idx, 1);
       }
@@ -329,6 +362,7 @@ export async function fuseKnowledgeGraphs(
       note = 'LLM 语义对齐失败，conflicts 如实返回';
     }
   }
+  alignedGroups.sort((a, b) => a.canonicalLabel.localeCompare(b.canonicalLabel, 'zh'));
 
   // ---- 构建融合图 ----
   const canonicalEntities = new Map<string, { order: number }>();
@@ -377,7 +411,8 @@ export async function fuseKnowledgeGraphs(
     return conceptNodeId(canonical);
   };
   graphs.forEach((g, sourceIdx) => {
-    const labelOf = (id: string) => g.entities.find((e) => e.id === id)?.label;
+    const labelById = new Map(g.entities.map((e) => [e.id, e.label]));
+    const labelOf = (id: string) => labelById.get(id);
     for (const e of g.relations) {
       const from = remap(e.from, e.from.startsWith('con-') ? labelOf : undefined);
       const to = remap(e.to, e.to.startsWith('con-') ? labelOf : undefined);

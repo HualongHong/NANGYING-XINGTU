@@ -71,6 +71,15 @@ describe('作业注册表', () => {
     expect(b.error).toContain('炸了');
   });
 
+  it('终态作业不可被取消覆盖', async () => {
+    useTempJobsDir();
+    const job = submitJob(async () => ({ ok: true }), { skill: 'test' });
+    await waitFor(() => getJob(job.jobId)?.status === 'done');
+    const cancelled = cancelJob(job.jobId)!;
+    expect(cancelled.status).toBe('done');
+    expect(cancelled.result).toEqual({ ok: true });
+  });
+
   it('磁盘快照：内存清空后从磁盘恢复 done；running 标记 interrupted', async () => {
     const dir = useTempJobsDir();
     const done = submitJob(async () => 'result-1', { skill: 'test' });
@@ -116,6 +125,22 @@ describe('作业卫生（interrupted 冻结 + 24h 惰性清理，反馈 P0-5：3
     expect(listJobs().some((j) => j.jobId === 'job-old0001')).toBe(false);
     expect(existsSync(join(jobsDir, 'job-old0001.json'))).toBe(false);
     expect(getJob('job-old0001')).toBeNull();
+  });
+
+  it('保留期只清理终态快照，旧 running 快照仍按 interrupted 恢复', () => {
+    const dir = useTempJobsDir();
+    const jobsDir = join(dir, 'cache', 'jobs');
+    mkdirSync(jobsDir, { recursive: true });
+    const legacy = {
+      jobId: 'job-running-old', skill: 'parse_course_material', status: 'running',
+      submittedAt: new Date(Date.now() - 25 * 3600_000).toISOString(),
+      updatedAt: new Date(Date.now() - 25 * 3600_000).toISOString(),
+      accumulatedMs: 60_000,
+    };
+    const file = join(jobsDir, 'job-running-old.json');
+    writeFileSync(file, JSON.stringify(legacy));
+    expect(listJobs().find((j) => j.jobId === legacy.jobId)?.status).toBe('interrupted');
+    expect(existsSync(file)).toBe(true);
   });
 
   it('分段计时：cancel 冻结 elapsedMs，终态后不再增长', async () => {

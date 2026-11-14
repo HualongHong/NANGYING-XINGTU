@@ -3,6 +3,7 @@ import { LocalAdapter } from '../adapters/core/local.adapter.js';
 import { handleMessage } from '../server/mcp.js';
 import { startHttpServer } from '../server/http.js';
 import type { Server } from 'node:http';
+import type { AdapterBase } from '../adapters/core/adapter.base.js';
 
 const adapter = new LocalAdapter();
 
@@ -163,6 +164,12 @@ describe('MCP handleMessage', () => {
     });
     expect(resp).toBeNull();
   });
+
+  it('非对象消息返回 invalid request，而不是抛异常', async () => {
+    const resp = await handleMessage(adapter, null as never);
+    expect(resp!.error!.code).toBe(-32600);
+    expect(resp!.id).toBeNull();
+  });
 });
 
 describe('HTTP JSON-RPC 入口', () => {
@@ -209,4 +216,41 @@ describe('HTTP JSON-RPC 入口', () => {
     const resp3 = await fetch(`http://127.0.0.1:${port}/other`, { method: 'GET' });
     expect(resp3.status).toBe(404);
   }, 15000);
+
+  it('通知返回 204，超限请求体返回 413', async () => {
+    const notification = await fetch(`http://127.0.0.1:${port}/rpc`, {
+      method: 'POST',
+      body: JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }),
+    });
+    expect(notification.status).toBe(204);
+    expect(await notification.text()).toBe('');
+
+    const oversized = await fetch(`http://127.0.0.1:${port}/rpc`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: ' '.repeat(10 * 1024 * 1024 + 1),
+    });
+    expect(oversized.status).toBe(413);
+    expect((await oversized.json()).error.code).toBe(-32600);
+  });
+
+  it('handler 异常返回 JSON-RPC 500，不让请求悬挂', async () => {
+    const broken = { listSkills: () => { throw new Error('mock failure'); } } as unknown as AdapterBase;
+    const brokenServer = await startHttpServer(broken, 0);
+    try {
+      const addr = brokenServer.address();
+      const brokenPort = typeof addr === 'object' && addr ? addr.port : 0;
+      const resp = await fetch(`http://127.0.0.1:${brokenPort}/rpc`, {
+        method: 'POST',
+        body: JSON.stringify({ jsonrpc: '2.0', id: 12, method: 'tools/list' }),
+      });
+      expect(resp.status).toBe(500);
+      const body = await resp.json();
+      expect(body.id).toBe(12);
+      expect(body.error).toMatchObject({ code: -32603 });
+      expect(body.error.message).toContain('mock failure');
+    } finally {
+      await new Promise((resolve) => brokenServer.close(resolve));
+    }
+  });
 });

@@ -66,7 +66,9 @@ function prerequisiteClosure(goals: string[], graph: CourseKnowledgeGraph): Set<
   const adj = new Map<string, string[]>();
   for (const e of graph.relations) {
     if (e.type !== 'prerequisite') continue;
-    adj.set(e.to, [...(adj.get(e.to) ?? []), e.from]);
+    const previous = adj.get(e.to);
+    if (previous) previous.push(e.from);
+    else adj.set(e.to, [e.from]);
   }
   const closure = new Set<string>(goals);
   const stack = [...goals];
@@ -84,15 +86,12 @@ function prerequisiteClosure(goals: string[], graph: CourseKnowledgeGraph): Set<
 
 function templateReason(
   step: { nodeId: string; kind: 'concept' | 'section' },
-  graph: CourseKnowledgeGraph,
+  prerequisiteSources: Set<string>,
   isEntry: boolean,
 ): string {
   if (isEntry) return '路径起点';
   if (step.kind === 'section') return '课程章节主线';
-  const outgoing = graph.relations.some(
-    (e) => e.type === 'prerequisite' && e.from === step.nodeId,
-  );
-  return outgoing ? '拓扑必需：是后续概念的先修' : '拓扑必需：目标前置';
+  return prerequisiteSources.has(step.nodeId) ? '拓扑必需：是后续概念的先修' : '拓扑必需：目标前置';
 }
 
 export async function recommendLearningPath(
@@ -124,7 +123,8 @@ export async function recommendLearningPath(
   }
 
   const known = new Set(profile.knownConceptIds ?? []);
-  const goals = (profile.goalConceptIds ?? []).filter((g) => topo.includes(g));
+  const topoIndex = new Map(topo.map((id, index) => [id, index]));
+  const goals = (profile.goalConceptIds ?? []).filter((g) => topoIndex.has(g));
 
   // 1) 目标闭包裁剪
   const closure = goals.length > 0 ? prerequisiteClosure(goals, graph) : null;
@@ -143,23 +143,7 @@ export async function recommendLearningPath(
     return true;
   });
 
-  // 3) 组装步骤 + 预算截断
-  let budget = profile.availableMinutes;
-  const steps: PathStep[] = [];
-  let truncated = false;
-  for (const id of candidates) {
-    const node = nodeById.get(id);
-    if (!node) continue;
-    const minutes = MINUTES_OF(node.kind);
-    if (budget !== undefined && budget < minutes) {
-      truncated = true;
-      break;
-    }
-    if (budget !== undefined) budget -= minutes;
-    steps.push({ nodeId: id, title: node.title, kind: node.kind, minutes });
-  }
-
-  // 3.5) R9 目标岗位缺口倒排：岗位 required skill 缺口大 → 其先修概念优先
+  // 3) R9 目标岗位缺口倒排：岗位 required skill 缺口大 → 其先修概念优先
   let occupationNote = ``;
   if (input.targetOccupation && input.industryGraph) {
     const industry = [
@@ -193,23 +177,20 @@ export async function recommendLearningPath(
         ![...anchorScore.keys()].some((cid) => lexicalTermScore(label, nodeById.get(cid)?.title ?? '') >= 0.5),
       ).map(([, label]) => label);
       // 先修祖先：沿 prerequisite 边正向可达锚点的节点（边 from=先修 → to=后继）
-      const adj = new Map<string, string[]>();
-      for (const e of graph.relations) {
-        if (e.type !== 'prerequisite') continue;
-        adj.set(e.from, [...(adj.get(e.from) ?? []), e.to]);
-      }
       const distToAnchor = new Map<string, number>();
       if (anchors.size > 0) {
         // 反向 BFS：从锚点沿逆边收集祖先
         const radj = new Map<string, string[]>();
         for (const e of graph.relations) {
           if (e.type !== 'prerequisite') continue;
-          radj.set(e.to, [...(radj.get(e.to) ?? []), e.from]);
+          const previous = radj.get(e.to);
+          if (previous) previous.push(e.from);
+          else radj.set(e.to, [e.from]);
         }
         const q: Array<[string, number]> = [...anchors].map((a) => [a, 0]);
         const seenB = new Set(anchors);
-        while (q.length > 0) {
-          const [cur, d] = q.shift()!;
+        for (let head = 0; head < q.length; head += 1) {
+          const [cur, d] = q[head];
           if (d >= 12) continue;
           for (const prev of radj.get(cur) ?? []) {
             if (seenB.has(prev)) continue;
@@ -238,19 +219,30 @@ export async function recommendLearningPath(
             ? '，缺口 ' + gapSkills.length + ' 项（' + gapSkills.slice(0, 3).join(String.fromCharCode(12289)) + (gapSkills.length > 3 ? String.fromCharCode(8230) : '') + '）'
             : '')
           + '；已按缺口先修倒排优先级';
-        // 同步重排已组装的 steps（steps 按 candidates 顺序生成于前——此处重算）
-        const stepMap = new Map(steps.map((st) => [st.nodeId, st]));
-        const reordered: PathStep[] = [];
-        for (const id of candidates) {
-          const st = stepMap.get(id);
-          if (st) reordered.push(st);
-        }
-        if (reordered.length === steps.length) steps.splice(0, steps.length, ...reordered);
       }
     }
   }
 
-  // 4) LLM 增强：为每步生成 reason；失败回落模板理由
+  // 4) 岗位重排后再应用预算，避免先生成的无关步骤挤掉目标先修节点
+  let budget = profile.availableMinutes;
+  const steps: PathStep[] = [];
+  let truncated = false;
+  for (const id of candidates) {
+    const node = nodeById.get(id);
+    if (!node) continue;
+    const minutes = MINUTES_OF(node.kind);
+    if (budget !== undefined && budget < minutes) {
+      truncated = true;
+      break;
+    }
+    if (budget !== undefined) budget -= minutes;
+    steps.push({ nodeId: id, title: node.title, kind: node.kind, minutes });
+  }
+
+  // 5) LLM 增强：为每步生成 reason；失败回落模板理由
+  const prerequisiteSources = new Set(
+    graph.relations.filter((e) => e.type === 'prerequisite').map((e) => e.from),
+  );
   let level: 'full' | 'degraded' = 'full';
   let note = '';
   if (ctx.llm && steps.length > 0) {
@@ -271,16 +263,17 @@ export async function recommendLearningPath(
     } catch {
       level = 'degraded';
       note = 'LLM 理由生成失败，已回落模板理由';
-      steps.forEach((s, i) => { s.reason = templateReason(s, graph, i === 0); });
+      steps.forEach((s, i) => { s.reason = templateReason(s, prerequisiteSources, i === 0); });
     }
   } else {
-    steps.forEach((s, i) => { s.reason = templateReason(s, graph, i === 0); });
+    steps.forEach((s, i) => { s.reason = templateReason(s, prerequisiteSources, i === 0); });
   }
   if (occupationNote) {
-    note = note ? `\${note}；\${occupationNote}` : occupationNote;
+    note = note ? `${note}；${occupationNote}` : occupationNote;
   }
 
   const learningSequence = steps.map((s) => s.nodeId);
+  const sequenceSet = new Set(learningSequence);
   return {
     skillId: RECOMMEND_LEARNING_PATH_ID,
     level,
@@ -288,8 +281,8 @@ export async function recommendLearningPath(
       personalizedPath: steps,
       learningSequence,
       coverage: {
-        skippedKnown: skippedKnown.sort((a, b) => topo.indexOf(a) - topo.indexOf(b)),
-        goalsReached: goals.filter((g) => learningSequence.includes(g)),
+        skippedKnown: skippedKnown.sort((a, b) => (topoIndex.get(a) ?? 0) - (topoIndex.get(b) ?? 0)),
+        goalsReached: goals.filter((g) => sequenceSet.has(g)),
         truncatedByBudget: truncated,
         prunedByGoals,
       },

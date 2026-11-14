@@ -138,7 +138,7 @@ describe('fuse_knowledge_graphs', () => {
     const noLlm = await fuseKnowledgeGraphs({ graphs: [g1, g2], sources: [{ id: 'a' }, { id: 'b' }] });
     expect(noLlm.data!.report.conflicts.length).toBeGreaterThan(0);
 
-    const spy = vi.fn(async () => '[["比色法测定","比色法标准"]]');
+    const spy = vi.fn(async () => '[["比色法测定","比色法标准"],["比色法测定","比色法标准"]]');
     const withLlm = await fuseKnowledgeGraphs(
       { graphs: [g1, g2], sources: [{ id: 'a' }, { id: 'b' }] },
       { llm: { complete: spy } },
@@ -147,6 +147,9 @@ describe('fuse_knowledge_graphs', () => {
     const labels = withLlm.data!.graph.entities.map((e) => e.label);
     expect(labels).toHaveLength(1);
     expect(withLlm.data!.report.conflicts).toHaveLength(0);
+    expect(withLlm.data!.report.alignedGroups).toHaveLength(1);
+    expect(withLlm.data!.report.alignedGroups[0].memberLabels).toEqual(['比色法标准', '比色法测定']);
+    expect(withLlm.data!.report.alignedGroups[0].sourceDistribution).toEqual({ a: 1, b: 1 });
   });
 
   it('conflicts 收紧：前后缀仅 2 字重合不列入（离心机/离心管）', async () => {

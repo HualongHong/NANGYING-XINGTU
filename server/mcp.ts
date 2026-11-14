@@ -25,6 +25,7 @@ interface JsonRpcResponse {
   error?: { code: number; message: string };
 }
 
+const INVALID_REQUEST = -32600;
 const METHOD_NOT_FOUND = -32601;
 const INVALID_PARAMS = -32602;
 const INTERNAL_ERROR = -32603;
@@ -34,11 +35,11 @@ export async function handleMessage(
   adapter: AdapterBase,
   msg: JsonRpcRequest,
 ): Promise<JsonRpcResponse | null> {
-  if (msg.jsonrpc !== '2.0' || typeof msg.method !== 'string') {
+  if (typeof msg !== 'object' || msg === null || msg.jsonrpc !== '2.0' || typeof msg.method !== 'string') {
     return {
       jsonrpc: '2.0',
       id: msg?.id ?? null,
-      error: { code: INVALID_PARAMS, message: '非法 JSON-RPC 请求' },
+      error: { code: INVALID_REQUEST, message: '非法 JSON-RPC 请求' },
     };
   }
   if (msg.id === undefined || msg.id === null) {
@@ -116,7 +117,7 @@ export async function handleMessage(
         const progressToken = (params as { progressToken?: unknown }).progressToken;
         const onProgress = progressToken === undefined ? undefined
           : (done: number, total: number, message: string) => {
-              process.stderr.write(String.fromCharCode(10).length ? `[nangying-starmap] ${message}` + String.fromCharCode(10) : '');
+              process.stderr.write(`[nangying-starmap] ${message}\n`);
               process.stdout.write(JSON.stringify({
                 jsonrpc: '2.0',
                 method: 'notifications/progress',
@@ -125,15 +126,8 @@ export async function handleMessage(
             };
         const result = await adapter.invokeSkill(name, { inputs: args, onProgress });
         const text = JSON.stringify(result, null, 2);
-        // R8-2（反馈 b P1-5）：同时带 structuredContent（MCP 标准字段），调用方免二次 JSON.parse；
-        // 结果不是 JSON 对象时不回 structuredContent（保持纯文本通道）
-        let structuredContent: unknown;
-        try {
-          const parsed: unknown = JSON.parse(text);
-          if (typeof parsed === 'object' && parsed !== null) structuredContent = parsed;
-        } catch {
-          structuredContent = undefined;
-        }
+        // structuredContent 直接复用结果对象，避免大结果 stringify 后再 parse 的额外内存与 CPU 开销。
+        const structuredContent = typeof result === 'object' && result !== null ? result : undefined;
         return {
           jsonrpc: '2.0',
           id: msg.id,
@@ -213,6 +207,12 @@ export function startMcpServer(adapter: AdapterBase): void {
       }
       void handleMessage(adapter, msg).then((resp) => {
         if (resp) process.stdout.write(JSON.stringify(resp) + '\n');
+      }).catch((err: unknown) => {
+        process.stdout.write(JSON.stringify({
+          jsonrpc: '2.0',
+          id: msg.id ?? null,
+          error: { code: INTERNAL_ERROR, message: `服务处理失败：${err instanceof Error ? err.message : String(err)}` },
+        }) + '\n');
       });
     }
   });

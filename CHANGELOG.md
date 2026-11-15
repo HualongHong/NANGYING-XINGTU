@@ -16,7 +16,11 @@ R20 迭代：科教融合备课工作流——由真实备课实践（基础生�
 - **配方与文档**：`docs/RECIPES.md` 新增配方 5（科教融合四件套工作流：调用序列 + 预期产物 + 4 条常见坑）；`docs/USAGE.md` 配置章补五技能链说明；README/SKILLS/ARCHITECTURE 计数与目录同步（26→31 共享，33→38 总数）。
 - **反馈闭环联动（文档级）**：验收 fail 项与红线触发经 `submit_feedback`（usage_issue/suggestion）入库，供 loop engineering 指标监控；本迭代不改反馈代码。
 
-R21 迭代：examples/ 示例即活文档——配方 5 全链 + 配方 1 前半链 + 配方 2 链 + 配方 3 链端到端守卫 + 示例摘要集版式修正为真 Δ=1；配方 5 两技能补 `async` 异步作业。测试 566 → 580。
+R21 迭代：examples/ 示例即活文档——配方 5 全链 + 配方 1 前半链 + 配方 2 链 + 配方 3 链端到端守卫 + 示例摘要集版式修正为真 Δ=1；配方 5 两技能补 `async` 异步作业；MinerU 适配器按官方现行契约重写（签名上传两段式）。测试 566 → 582。
+
+### Fixed
+
+- **MinerU 适配器契约漂移修复**：真实健康检查发现官方已废弃 multipart 文件直传——免费档 400 `field "file_name" is not set`（现为 JSON 申请签名上传 URL → OSS PUT → 轮询 → Markdown CDN 两段式）；精准档 `/api/v4/extract/task` 不再收文件（改为 `/api/v4/file-urls/batch` 批量上传通道 batch=1 → PUT → 轮询 `/api/v4/extract-results/batch/{id}` → zip）。`mineru.ts` 两档全量重写：新增信封业务错误识别（HTTP 200 + code≠0，如 -60009 队列已满）、err_code 结构化抛出、PUT 直传件；测试 mock 同步新版契约并补免费档 failed/业务错误用例。**真机端到端验证通过**（手构 603B 单页 PDF → 免费档返回正确 Markdown）。OpenDataLab 数据集探查实机同验通过（GAOKAO-Bench/MMLU 匿名 full）；SciVerse 因 .env 无 Token 未验。
 
 ### Added
 

@@ -39,12 +39,24 @@ function zipWithMd(): Uint8Array {
 }
 
 describe('MinerU 解码器（adapters/odlab/mineru.ts）', () => {
-  it('免费档：无 Token 走 /api/v1/agent/parse/file 直返 Markdown', async () => {
+  it('免费档：无 Token 走签名上传三段式（申请→PUT→轮询→下载 Markdown）', async () => {
     const { fetchImpl, calls } = mockFetch([
-      { match: /\/api\/v1\/agent\/parse\/file$/, responses: [{ body: { code: 0, data: { markdown_content: MD } } }] },
+      {
+        match: /\/api\/v1\/agent\/parse\/file$/,
+        responses: [{ body: { code: 0, data: { task_id: 't-flash', file_url: 'https://oss-mineru.example/up' } } }],
+      },
+      { match: /oss-mineru\.example\/up$/, responses: [{ status: 200, body: '' }] },
+      {
+        match: /\/api\/v1\/agent\/parse\/t-flash$/,
+        responses: [
+          { body: { code: 0, data: { state: 'running' } } },
+          { body: { code: 0, data: { state: 'done', markdown_url: 'https://cdn-mineru.example/full.md' } } },
+        ],
+      },
+      { match: /cdn-mineru\.example\/full\.md$/, responses: [{ body: MD }] },
     ]);
     const decoder = createMineruDecoder({
-      config: { provider: 'mineru' },
+      config: { provider: 'mineru', extra: { pollIntervalMs: '1' } },
       keyProvider: () => undefined,
       fetchImpl,
     });
@@ -52,6 +64,29 @@ describe('MinerU 解码器（adapters/odlab/mineru.ts）', () => {
     expect(doc.content).toBe(MD);
     expect(doc.note).toContain('flash');
     expect(calls[0]).toContain('/api/v1/agent/parse/file');
+    expect(calls[1]).toContain('oss-mineru.example/up');
+    expect(calls.some((u) => u.includes('/api/v1/agent/parse/t-flash'))).toBe(true);
+    expect(calls.some((u) => u.includes('cdn-mineru.example/full.md'))).toBe(true);
+  });
+
+  it('免费档：任务 failed 带 err_code 抛结构化错误', async () => {
+    const { fetchImpl } = mockFetch([
+      {
+        match: /\/api\/v1\/agent\/parse\/file$/,
+        responses: [{ body: { code: 0, data: { task_id: 't-bad', file_url: 'https://oss-mineru.example/up2' } } }],
+      },
+      { match: /oss-mineru\.example\/up2$/, responses: [{ status: 200, body: '' }] },
+      {
+        match: /\/api\/v1\/agent\/parse\/t-bad$/,
+        responses: [{ body: { code: 0, data: { state: 'failed', err_code: -30003, err_msg: '页数超限' } } }],
+      },
+    ]);
+    const decoder = createMineruDecoder({
+      config: { provider: 'mineru', extra: { pollIntervalMs: '1' } },
+      keyProvider: () => undefined,
+      fetchImpl,
+    });
+    await expect(decoder.decode({ data: new Uint8Array([1]), materialType: 'pdf' })).rejects.toThrow('MinerU 免费档解析失败（-30003）：页数超限');
   });
 
   it('免费档：>10MB 拒绝并提示精准档（不发起请求）', async () => {
@@ -66,14 +101,18 @@ describe('MinerU 解码器（adapters/odlab/mineru.ts）', () => {
     expect(calls).toHaveLength(0);
   });
 
-  it('精准档：上传→轮询→下载 zip 取 full.md', async () => {
+  it('精准档：批量上传通道（file-urls/batch→PUT→轮询→下载 zip 取 full.md）', async () => {
     const { fetchImpl, calls } = mockFetch([
-      { match: /\/api\/v4\/extract\/task$/, responses: [{ body: { code: 0, data: { task_id: 't-123' } } }] },
       {
-        match: /\/api\/v4\/extract\/task\/t-123$/,
+        match: /\/api\/v4\/file-urls\/batch$/,
+        responses: [{ body: { code: 0, data: { batch_id: 'b-123', file_urls: ['https://oss.example/up'] } } }],
+      },
+      { match: /oss\.example\/up$/, responses: [{ status: 200, body: '' }] },
+      {
+        match: /\/api\/v4\/extract-results\/batch\/b-123$/,
         responses: [
-          { body: { data: { state: 'running' } } },
-          { body: { data: { state: 'done', zip_url: 'https://cdn.example/result.zip' } } },
+          { body: { code: 0, data: { extract_result: [{ state: 'running' }] } } },
+          { body: { code: 0, data: { extract_result: [{ state: 'done', full_zip_url: 'https://cdn.example/result.zip' }] } } },
         ],
       },
       { match: /cdn\.example\/result\.zip$/, responses: [{ body: zipWithMd() }] },
@@ -86,14 +125,22 @@ describe('MinerU 解码器（adapters/odlab/mineru.ts）', () => {
     const doc = await decoder.decode({ data: new Uint8Array([9, 9]), materialType: 'pdf' });
     expect(doc.content).toBe(MD);
     expect(doc.note).toContain('precise');
-    expect(calls.some((u) => u.includes('/api/v4/extract/task'))).toBe(true);
+    expect(calls.some((u) => u.includes('/api/v4/file-urls/batch'))).toBe(true);
+    expect(calls.some((u) => u.includes('oss.example/up'))).toBe(true);
     expect(calls.some((u) => u.includes('cdn.example/result.zip'))).toBe(true);
   });
 
   it('精准档：任务 failed 抛结构化错误', async () => {
     const { fetchImpl } = mockFetch([
-      { match: /\/api\/v4\/extract\/task$/, responses: [{ body: { data: { task_id: 't-9' } } }] },
-      { match: /\/api\/v4\/extract\/task\/t-9$/, responses: [{ body: { data: { state: 'failed', err_msg: '页数超限' } } }] },
+      {
+        match: /\/api\/v4\/file-urls\/batch$/,
+        responses: [{ body: { code: 0, data: { batch_id: 'b-9', file_urls: ['https://oss.example/up9'] } } }],
+      },
+      { match: /oss\.example\/up9$/, responses: [{ status: 200, body: '' }] },
+      {
+        match: /\/api\/v4\/extract-results\/batch\/b-9$/,
+        responses: [{ body: { code: 0, data: { extract_result: [{ state: 'failed', err_msg: '页数超限' }] } } }],
+      },
     ]);
     const decoder = createMineruDecoder({
       config: { provider: 'mineru', extra: { pollIntervalMs: '1' } },
@@ -105,8 +152,15 @@ describe('MinerU 解码器（adapters/odlab/mineru.ts）', () => {
 
   it('精准档：轮询超时抛错（预算可经 extra.pollBudgetMs 配置）', async () => {
     const { fetchImpl } = mockFetch([
-      { match: /\/api\/v4\/extract\/task$/, responses: [{ body: { data: { task_id: 't-slow' } } }] },
-      { match: /\/api\/v4\/extract\/task\/t-slow$/, responses: [{ body: { data: { state: 'running' } } }] },
+      {
+        match: /\/api\/v4\/file-urls\/batch$/,
+        responses: [{ body: { code: 0, data: { batch_id: 'b-slow', file_urls: ['https://oss.example/ups'] } } }],
+      },
+      { match: /oss\.example\/ups$/, responses: [{ status: 200, body: '' }] },
+      {
+        match: /\/api\/v4\/extract-results\/batch\/b-slow$/,
+        responses: [{ body: { code: 0, data: { extract_result: [{ state: 'running' }] } } }],
+      },
     ]);
     const decoder = createMineruDecoder({
       config: { provider: 'mineru', extra: { pollIntervalMs: '1', pollBudgetMs: '30' } },
@@ -116,9 +170,32 @@ describe('MinerU 解码器（adapters/odlab/mineru.ts）', () => {
     await expect(decoder.decode({ data: new Uint8Array([1]), materialType: 'pdf' })).rejects.toThrow('解析超时');
   });
 
+  it('业务信封错误：HTTP 200 + code!=0 抛结构化错误并脱敏', async () => {
+    const { fetchImpl } = mockFetch([
+      {
+        match: /\/api\/v4\/file-urls\/batch$/,
+        responses: [{ status: 200, body: { code: -60009, msg: `任务提交队列已满 ${TOKEN}`, data: null } }],
+      },
+    ]);
+    const decoder = createMineruDecoder({
+      config: { provider: 'mineru' },
+      keyProvider: () => TOKEN,
+      fetchImpl,
+    });
+    try {
+      await decoder.decode({ data: new Uint8Array([1]), materialType: 'pdf' });
+      expect.unreachable();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      expect(msg).toContain('MinerU 业务错误（code=-60009）');
+      expect(msg).not.toContain(TOKEN);
+      expect(msg).toContain('***');
+    }
+  });
+
   it('错误消息脱敏：HTTP 错误体中的 Token 子串被 redact', async () => {
     const { fetchImpl } = mockFetch([
-      { match: /\/api\/v4\/extract\/task$/, responses: [{ status: 401, body: `invalid token ${TOKEN}` }] },
+      { match: /\/api\/v4\/file-urls\/batch$/, responses: [{ status: 401, body: `invalid token ${TOKEN}` }] },
     ]);
     const decoder = createMineruDecoder({
       config: { provider: 'mineru' },
@@ -144,7 +221,16 @@ describe('MinerU 解码器（adapters/odlab/mineru.ts）', () => {
 
   it('工厂路由：createDecoder(provider="mineru") 接的就是 MinerU 解码器（解码阶梯③号位同路径）', async () => {
     const { fetchImpl, calls } = mockFetch([
-      { match: /\/api\/v1\/agent\/parse\/file$/, responses: [{ body: { data: { markdown_content: MD } } }] },
+      {
+        match: /\/api\/v1\/agent\/parse\/file$/,
+        responses: [{ body: { code: 0, data: { task_id: 't-route', file_url: 'https://oss-mineru.example/upr' } } }],
+      },
+      { match: /oss-mineru\.example\/upr$/, responses: [{ status: 200, body: '' }] },
+      {
+        match: /\/api\/v1\/agent\/parse\/t-route$/,
+        responses: [{ body: { code: 0, data: { state: 'done', markdown_url: 'https://cdn-mineru.example/r.md' } } }],
+      },
+      { match: /cdn-mineru\.example\/r\.md$/, responses: [{ body: MD }] },
     ]);
     const decoder = createDecoder({ provider: 'mineru' }, () => undefined, { fetchImpl });
     const doc = await decoder.decode({ data: new Uint8Array([7]), materialType: 'pdf' });

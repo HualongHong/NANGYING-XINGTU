@@ -9,7 +9,8 @@
  *       （guarded 规格名/kind、IMPLEMENTED_SKILLS 清单），漂移即红；
  *   (f) skills.meta.json 与 manifest 的 skillId 一一对应（gen-registry 的元数据源）；
  *   (g) docs/SKILLS.md 速查表完整：每个注册技能有表格行且无多出行（防文档漂移）；
- *   (h) DSH preset 文案漂移：preset 声称的技能数 = 注册表技能数、配方数 = RECIPES.md 配方数。
+ *   (h) DSH preset 文案漂移：preset 声称的技能数 = 注册表技能数、配方数 = RECIPES.md 配方数；
+ *   (i) dist 引用漂移：package.json 脚本指向的 dist/*.js，其源 ts 必须被 tsconfig.build.json 覆盖。
  * 任一失败 exit 1 并打印中文错误；全部通过则打印中文成功摘要。
  */
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
@@ -267,6 +268,31 @@ try {
   if (extraMeta.length > 0) errors.push(`skills.meta.json 多出 manifest 未声明的技能：${extraMeta.join('、')}`);
 } catch (err) {
   errors.push(`skills.meta.json 读取失败：${err.message}`);
+}
+
+// (i) dist 引用漂移：package.json 里 `node dist/X.js` 的脚本，其源 X.ts 必须被 tsconfig.build.json 覆盖
+//     （今晚真实事故：config 脚本指向 dist/cli/config.js 而 include 漏 cli/**，新鲜克隆构建即坏）
+try {
+  const pkg = readJson('package.json');
+  const buildCfg = readJson('tsconfig.build.json');
+  const includeGlobs = Array.isArray(buildCfg.include) ? buildCfg.include : [];
+  const covered = (relTs) =>
+    includeGlobs.some((g) => {
+      const seg = g.split('/')[0];
+      return relTs === seg || relTs.startsWith(`${seg}/`);
+    });
+  for (const [name, script] of Object.entries(pkg.scripts ?? {})) {
+    for (const m of String(script).matchAll(/node dist\/(\S+?\.js)/g)) {
+      const src = m[1].replace(/\.js$/, '.ts');
+      if (!existsSync(join(root, src))) {
+        errors.push(`package.json 脚本 ${name} 指向 dist/${m[1]}，但源 ${src} 不存在`);
+      } else if (!covered(src)) {
+        errors.push(`package.json 脚本 ${name} 指向 dist/${m[1]}，但 ${src} 未被 tsconfig.build.json include 覆盖（构建不产出，脚本即坏）`);
+      }
+    }
+  }
+} catch (err) {
+  errors.push(`dist 引用漂移校验失败：${err.message}`);
 }
 
 if (errors.length > 0) {

@@ -25,6 +25,7 @@ R21 迭代：examples/ 示例即活文档——配方 5 全链 + 配方 1 前半
 - **validate.mjs 增 SKILLS.md 速查表完整性校验 (g)**：注册表 38 技能 ↔ docs/SKILLS.md 表格行一一对应（缺行/多出行即红），速查表漂移自此 CI 可查。
 - **DSH preset 与安装脚本漂移修正**：preset 描述/persona 的"19 个技能"→38、"四个配方"→五个，persona 补配方 5 五链与按需启用四技能（settings_card/submit_feedback/inspect_teaching_dataset/enrich_knowledge_evidence）；install-dsh.mjs 提示语改读注册表动态计数（`registrySkillCount()`），不再硬编码。
 - **validate.mjs 增 DSH preset 漂移校验 (h)**：preset 声称技能数（阿拉伯数字）与配方数（中文数字）分别对账注册表与 RECIPES.md，漂移即红（正反两向验证）。
+- **tsconfig.build.json 补 cli/****：`pnpm run build` 此前不产出 `dist/cli/config.js` 而 `pnpm config` 与文档命令都指向它（新鲜克隆构建后 CLI 即坏）——include 增 `cli/**/*.ts` 根治；CLI 全通道冒烟通过（写入 0600 脱敏/回显/清除/空值拒写/未知供应商拒写）。
 
 ### Added
 

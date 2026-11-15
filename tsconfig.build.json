@@ -5,5 +5,5 @@
     "rootDir": ".",
     "sourceMap": false
   },
-  "include": ["core/**/*.ts", "adapters/**/*.ts", "server/**/*.ts", "manifests/skills.registry.json"]
+  "include": ["core/**/*.ts", "adapters/**/*.ts", "server/**/*.ts", "cli/**/*.ts", "manifests/skills.registry.json"]
 }

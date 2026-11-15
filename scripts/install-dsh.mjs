@@ -349,7 +349,19 @@ export function runDoctor(opts = {}) {
       const cfg = JSON.parse(readFileSync(cfgFile, 'utf8'));
       const secFile = join(configDirForDoctor(), 'secrets.json');
       const hasKey = existsSync(secFile) && Boolean(JSON.parse(readFileSync(secFile, 'utf8')).apiKey);
-      llmLines.push(`${cfg.provider ?? 'unknown'}（settings/secrets 正式路径）：key ${hasKey ? '已配置' : '未配置'}`);
+      if (cfg.provider) {
+        llmLines.push(`解码器 ${cfg.provider}（settings/secrets 顶层）：key ${hasKey ? '已配置' : '未配置'}`);
+      }
+      // LLM 配置在 extra.llm（setup-llm 写入；顶层 provider 是解码器枚举，不能当 LLM 报）
+      let llmCfg = null;
+      try {
+        llmCfg = JSON.parse(cfg.extra?.llm ?? 'null');
+      } catch {
+        llmCfg = null;
+      }
+      if (llmCfg?.provider) {
+        llmLines.push(`LLM ${llmCfg.provider}（extra.llm）：key ${hasKey ? '已配置' : '未配置'}`);
+      }
     }
   } catch { /* 配置目录不可读时略过 */ }
   push('llm', 'LLM 配置（脱敏）', llmLines.length > 0 ? 'ok' : 'warn',

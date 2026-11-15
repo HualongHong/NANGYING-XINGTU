@@ -5,6 +5,9 @@
  * LLM 配置存 settings.json 的 extra.llm 子对象 —— 与顶层解码器 provider 位分离：
  * setup-llm 曾把 provider=deepseek 写在顶层，会覆盖解码器配置并被解码阶梯③当未知供应商。
  * 现 merge 写入 extra.llm，解码器配置（mineru/local-ocr/端口等 extra 字段）原样保留。
+ *
+ * 注意：readline/promises 在非 TTY 管道输入下遇 EOF 即静默退出（TTY 人工使用正常）——
+ * 自动化验证请直接调用 writeLlmSettings，不要管道喂交互向导。
  */
 import readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';

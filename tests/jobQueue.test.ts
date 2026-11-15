@@ -239,6 +239,45 @@ describe('async: true 提交（重技能）', () => {
     expect(asyncTitles).toEqual(syncTitles);
   }, 30000);
 
+  it('select_research_evidence async：jobId 毫秒级返回；query 结果与同步一致', async () => {
+    useTempJobsDir();
+    const adapter = new LocalAdapter({ envLlm: false });
+    const records = [
+      { id: 'R1', title: '放牧对草原群落稳定性的影响', keywords: ['稳定性'], body: '本文研究群落稳定性与物种异步性。', affiliations: ['北京大学'], session: '分会场一' },
+      { id: 'R2', title: '凋落物分解对土壤有机质积累的贡献', keywords: ['土壤有机质'], body: '本文研究凋落物分解。', affiliations: ['青屿师大'], session: '分会场一' },
+      { id: 'R3', title: '湿地恢复工程对水质净化服务的贡献', keywords: ['生态系统服务'], body: '本文研究水质净化服务。', affiliations: ['澄江湿地'], session: '分会场二' },
+    ];
+    const sections = [
+      { title: '6.1 群落稳定性', knowledgePoints: ['群落稳定性'] },
+      { title: '6.2 土壤有机质', knowledgePoints: ['土壤有机质'] },
+      { title: '6.3 生态系统服务', knowledgePoints: ['生态系统服务'] },
+    ];
+    const inputs = { records, sections, percentile: 0.2, perSectionMin: 1 };
+
+    const sync = await adapter.invokeSkill('select_research_evidence', { inputs });
+    const asyncRes = await adapter.invokeSkill('select_research_evidence', { inputs: { ...inputs, async: true } });
+    expect(asyncRes.level).toBe('full');
+    const jobId = (asyncRes.data as { jobId: string }).jobId;
+    expect(typeof jobId).toBe('string');
+
+    const poll = async (): Promise<{ status: string; result?: { data: { selected: Array<{ recordId: string }> } } }> => {
+      const t0 = Date.now();
+      for (;;) {
+        const q = await adapter.invokeSkill('manage_async_tasks', { inputs: { operation: 'query', jobId } });
+        const job = (q.data as { job: { status: string; result?: { data: { selected: Array<{ recordId: string }> } } } }).job;
+        if (job.status === 'done') return job;
+        if (job.status === 'error') throw new Error('异步作业失败：' + JSON.stringify(job.result ?? ''));
+        if (Date.now() - t0 > 15_000) throw new Error('轮询超时：作业 15s 未 done');
+        await new Promise((r) => setTimeout(r, 50));
+      }
+    };
+    const job = await poll();
+    expect(job.status).toBe('done');
+    const syncIds = (sync.data as { selected: Array<{ recordId: string }> }).selected.map((s) => s.recordId);
+    const asyncIds = (job.result?.data.selected ?? []).map((s) => s.recordId);
+    expect(asyncIds).toEqual(syncIds);
+  }, 30000);
+
   it('list 与 cancel 经 manage_async_tasks；不支持的技能 async 报错', async () => {
     useTempJobsDir();
     const adapter = new LocalAdapter({ llm: counted, envLlm: false });

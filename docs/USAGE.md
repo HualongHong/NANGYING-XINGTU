@@ -116,13 +116,15 @@ curl -X POST http://127.0.0.1:7379/rpc \
 
 ```bash
 pnpm build
-pnpm config    # 交互向导（不回显 key）
+pnpm config    # 交互向导（不回显 key；配置的是文档解码器）
 # 或参数模式（CI 友好）：
 pnpm config --provider kimi --model moonshot-v1-8k --endpoint https://api.moonshot.cn --api-key-env MOONSHOT_KEY
 pnpm config --provider mineru   # 免 key：免费档；--api-key 传入则精准档
-pnpm config --show    # 显示当前配置（脱敏，不回显 key）
+pnpm config --show    # 显示当前配置（脱敏，不回显 key；含 extra.llm 的 LLM 配置行）
 pnpm config --clear   # 清除密钥
 ```
+
+LLM（讲稿润色/词族派生等）与解码器分位存放：`node scripts/install-dsh.mjs --setup-llm` 写入 `settings.json` 的 `extra.llm`，`pnpm config` 不动它；`.env` 调试通道 `NANGYING_LLM_PROVIDER/_MODEL/_ENDPOINT` 或各厂商 `*_API_KEY`。
 
 学术证据（可选）：`enrich_knowledge_evidence` 技能经 SciVerse（OpenDataLab 学术基座）为图谱逐概念挂学术引用；Token 用 settings_card 的学术证据区块写入命名密钥 `sciverseApiKey`，或 `.env` 的 `SCIVERSE_API_TOKEN` 调试通道。无 Token 时技能返回 `degraded` 且图谱不动，主流程不中断。
 

@@ -115,6 +115,15 @@ function summarize(localOcrAvailable?: boolean): string {
     );
   }
   lines.push(`配置文件：${settingsPath()}`, `密钥文件：${secretsPath()}`);
+  // LLM 配置（setup-llm 写入 extra.llm）一并脱敏回显，避免用户误以为配置丢失
+  try {
+    const llm = JSON.parse(config.extra?.llm ?? '{}') as { provider?: string; model?: string; endpoint?: string };
+    if (llm.provider) {
+      lines.push(`LLM（extra.llm）：${llm.provider} / ${llm.model ?? '（默认）'} / ${llm.endpoint ?? '（默认）'}`);
+    }
+  } catch {
+    lines.push('LLM（extra.llm）：存在但解析失败（非法 JSON）');
+  }
   return lines.join('\n');
 }
 

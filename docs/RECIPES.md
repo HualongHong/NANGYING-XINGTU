@@ -2,7 +2,7 @@
 
 面向"DSH 里被教学助理 preset 引导"的场景：用户说一句目标，preset 按下列顺序指挥 `mcp__nangying_starmap__*` 工具完成。每个配方标注前提（LLM 配置状态的影响）、调用序列（编号 + skillId + 关键入参）、预期产物与常见坑。
 
-> LLM 状态说明：宿主注入（正式路径）或 `pnpm config`（终端用户）或 `.env`（调试）任一可用即"有 LLM"。无 LLM 时全链路仍可跑通（启发式降级），但候选过滤、译文润色、理由生成等增强缺失。
+> LLM 状态说明：宿主注入（正式路径）或 LLM 配置（`node scripts/install-dsh.mjs --setup-llm` 写入 settings.json 的 `extra.llm`，或历史顶层配置兼读）或 `.env`（调试）任一可用即"有 LLM"。无 LLM 时全链路仍可跑通（启发式降级），但候选过滤、译文润色、理由生成等增强缺失。注意 `pnpm config` 配置的是**文档解码器**（顶层 provider），与 LLM 配置分位存放、互不覆盖。
 >
 > 可复演性：仓库 `examples/` 目录自带原创 CC0 示例材料，覆盖配方 1 前半、2、3、5 四条链；`npx vitest run tests/examplesWalkthrough.test.ts` 对这些示例跑端到端守卫（12 例），改技能或改示例改坏任一环即红。配方 5 的五技能链在真实 LLM（DeepSeek）下已实测词族派生 3/3 节并入通过。
 

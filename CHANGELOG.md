@@ -23,6 +23,7 @@ R21 迭代：examples/ 示例即活文档——配方 5 全链 + 配方 1 前半
 - **MinerU 适配器契约漂移修复**：真实健康检查发现官方已废弃 multipart 文件直传——免费档 400 `field "file_name" is not set`（现为 JSON 申请签名上传 URL → OSS PUT → 轮询 → Markdown CDN 两段式）；精准档 `/api/v4/extract/task` 不再收文件（改为 `/api/v4/file-urls/batch` 批量上传通道 batch=1 → PUT → 轮询 `/api/v4/extract-results/batch/{id}` → zip）。`mineru.ts` 两档全量重写：新增信封业务错误识别（HTTP 200 + code≠0，如 -60009 队列已满）、err_code 结构化抛出、PUT 直传件；测试 mock 同步新版契约并补免费档 failed/业务错误用例。**真机端到端验证通过**（手构 603B 单页 PDF → 免费档返回正确 Markdown；扫描版 PDF 内嵌文字图 → rung③ OCR 返回正文；xlsx → Office 原生解析返回表格）。OpenDataLab 数据集探查实机同验通过（GAOKAO-Bench/MMLU 匿名 full）；SciVerse 因 .env 无 Token 未验。
 - **xlsx 课件解析链开通**：`BINARY_MATERIAL_TYPES` 与 core `KNOWN_TYPES` 增 `xlsx`——Excel 课件经二进制解码链到配置位③ MinerU 免费档 Office 原生解析（本地无 xlsx 原生抽取，MinerU 是唯一通道；平台不可用时按既有阶梯降级并注明）。`parse_course_material` 契约 hint 同步。
 - **validate.mjs 增 SKILLS.md 速查表完整性校验 (g)**：注册表 38 技能 ↔ docs/SKILLS.md 表格行一一对应（缺行/多出行即红），速查表漂移自此 CI 可查。
+- **DSH preset 与安装脚本漂移修正**：preset 描述/persona 的"19 个技能"→38、"四个配方"→五个，persona 补配方 5 五链与按需启用四技能（settings_card/submit_feedback/inspect_teaching_dataset/enrich_knowledge_evidence）；install-dsh.mjs 提示语改读注册表动态计数（`registrySkillCount()`），不再硬编码。
 
 ### Added
 

@@ -24,6 +24,16 @@ export const MCP_ID = 'mcp-nangying-starmap';
 export const SERVER_NAME = 'nangying_starmap';
 
 const pluginRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+
+/** 注册表技能数（install 提示与 manifest 单一事实源同步，防文案漂移） */
+export function registrySkillCount() {
+  try {
+    const registry = JSON.parse(readFileSync(join(pluginRoot, 'manifests/skills.registry.json'), 'utf8'));
+    return Array.isArray(registry.skills) ? registry.skills.length : 0;
+  } catch {
+    return 0;
+  }
+}
 const distEntry = join(pluginRoot, 'dist', 'server', 'mcp.js');
 
 // ---------- YAML 顶层块的保守文本操作 ----------
@@ -640,7 +650,7 @@ async function main() {
     console.log('');
     console.log('后续步骤：');
     console.log('  1. 重启 DSH Desktop（使 MCP 注册生效）；');
-    console.log(`  2. 新建会话，确认出现 19 个 mcp__${SERVER_NAME}__* 工具（可先问 agent"列出可用工具"）；`);
+    console.log(`  2. 新建会话，确认出现 ${registrySkillCount()} 个 mcp__${SERVER_NAME}__* 工具（可先问 agent"列出可用工具"）；`);
     console.log('  3. 若工具未出现，运行 node scripts/install-dsh.mjs --check 查看注册块自检输出。');
     process.exit(0);
   } catch (err) {

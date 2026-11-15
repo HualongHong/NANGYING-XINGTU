@@ -140,6 +140,32 @@ describe('R17 设置卡片（settings_card）', () => {
     expect(cleared.apiKey.configured).toBe(false);
   });
 
+  it('apply：extra.llm（setup-llm 写入的 LLM 配置）与既有 extra 字段在 apply 后幸存——配置分位互不覆盖', async () => {
+    const { writeFileSync } = await import('node:fs');
+    writeFileSync(
+      join(dir, 'settings.json'),
+      JSON.stringify({
+        provider: 'mineru',
+        extra: {
+          port: '7379',
+          llm: JSON.stringify({ provider: 'deepseek', model: 'deepseek-flash', endpoint: 'https://api.deepseek.com' }),
+        },
+      }),
+    );
+    const adapter = new LocalAdapter();
+    const r = await adapter.invokeSkill('settings_card', {
+      inputs: { stage: 'apply', platform: 'local', settings: { provider: 'kimi' } },
+    });
+    expect(r.level).toBe('full');
+    const cfg = JSON.parse(readFileSync(join(dir, 'settings.json'), 'utf8')) as {
+      provider: string;
+      extra: { port?: string; llm?: string };
+    };
+    expect(cfg.provider).toBe('kimi');
+    expect(cfg.extra.port).toBe('7379');
+    expect(JSON.parse(cfg.extra.llm ?? '{}')).toMatchObject({ provider: 'deepseek' });
+  });
+
   it('apply：非法输入全部 INVALID_INPUT 且不落盘——provider 非法/endpoint 非 URL/port 越界/stdio 平台拒收 port/settings 为空/缺 provider', async () => {
     const adapter = new LocalAdapter();
     const cases: Array<Record<string, unknown>> = [

@@ -108,9 +108,9 @@ curl -X POST http://127.0.0.1:7379/rpc \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 ```
 
-## 8. 配置文档解码器
+## 7. 配置文档解码器
 
-二进制文档（PDF/PPTX）的解码双重供给：宿主注入 `ctx.decoder` 优先；否则使用本机配置的内置供应商解码器。
+二进制文档（PDF/PPT(X)/DOC(X)/XLSX/图片）的解码双重供给：宿主注入 `ctx.decoder` 优先；否则使用本机配置的内置供应商解码器。
 
 内置供应商：`kimi`（Moonshot 文件解析）、`openai`（OpenAI 兼容视觉）、`mineru`（OpenDataLab 高精度解析——表格→HTML、公式→LaTeX；**免 key 免费档** ≤10MB/20 页仅 Markdown，配 `MINERU_API_TOKEN`（mineru.net 控制台申请）走精准档异步任务，每日免费高优额度以官网为准）。
 

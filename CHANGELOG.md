@@ -16,7 +16,7 @@ R20 迭代：科教融合备课工作流——由真实备课实践（基础生�
 - **配方与文档**：`docs/RECIPES.md` 新增配方 5（科教融合四件套工作流：调用序列 + 预期产物 + 4 条常见坑）；`docs/USAGE.md` 配置章补五技能链说明；README/SKILLS/ARCHITECTURE 计数与目录同步（26→31 共享，33→38 总数）。
 - **反馈闭环联动（文档级）**：验收 fail 项与红线触发经 `submit_feedback`（usage_issue/suggestion）入库，供 loop engineering 指标监控；本迭代不改反馈代码。
 
-R21 迭代：examples/ 示例即活文档——配方 5 全链 + 配方 1 前半链 + 配方 2 链 + 配方 3 链端到端守卫 + 示例摘要集版式修正为真 Δ=1；配方 5 两技能补 `async` 异步作业；MinerU 适配器按官方现行契约重写（签名上传两段式）。测试 566 → 584。
+R21 迭代：examples/ 示例即活文档——配方 5 全链 + 配方 1 前半链 + 配方 2 链 + 配方 3 链端到端守卫 + 示例摘要集版式修正为真 Δ=1；配方 5 两技能补 `async` 异步作业；MinerU 适配器按官方现行契约重写（签名上传两段式）。测试 566 → 588。
 
 ### Fixed
 
@@ -27,6 +27,7 @@ R21 迭代：examples/ 示例即活文档——配方 5 全链 + 配方 1 前半
 - **validate.mjs 增 DSH preset 漂移校验 (h)**：preset 声称技能数（阿拉伯数字）与配方数（中文数字）分别对账注册表与 RECIPES.md，漂移即红（正反两向验证）。
 - **tsconfig.build.json 补 cli/****：`pnpm run build` 此前不产出 `dist/cli/config.js` 而 `pnpm config` 与文档命令都指向它（新鲜克隆构建后 CLI 即坏）——include 增 `cli/**/*.ts` 根治；CLI 全通道冒烟通过（写入 0600 脱敏/回显/清除/空值拒写/未知供应商拒写）。
 - **validate.mjs 增 dist 引用漂移校验 (i)**：package.json 脚本指向的 `dist/*.js` 其源 ts 必须被 build include 覆盖（CLI 事故类自此 CI 可查，正反两向验证）。
+- **配置双占用冲突修复（setup-llm × 解码器配置）**：settings.json 顶层 provider 是解码器枚举，而 setup-llm 向导把 LLM provider（deepseek/minimax）写同一位 —— 覆盖既有解码器配置且被阶梯③当未知供应商。现 LLM 配置改存 `extra.llm`（setup-llm merge 写入，解码器配置与端口等 extra 字段原样保留），`createLlmFromEnv` 优先读 `extra.llm`、顶层旧配置兼读。顺带修复同类缺口：解码器工厂补 `local-ocr` 分支（settings_card/CLI 枚举早已允许，工厂缺失会导致配置即坏）；阶梯③对非解码器 provider 从"抛未知供应商"改为"跳过并给清晰注释"。
 
 ### Added
 

@@ -103,4 +103,47 @@ describe('createLlmFromEnv（LocalAdapter 的 .env 回退）', () => {
     dirs.push(d);
     expect(createLlmFromEnv({ dotEnvPath: join(d, '.env') })).toBeUndefined();
   });
+
+  it('extra.llm 优先于顶层 provider/model/endpoint（setup-llm 写入路径；顶层保留解码器配置）', async () => {
+    const d = mkdtempSync(join(tmpdir(), 'ny-cfg-'));
+    dirs.push(d);
+    process.env.NANGYING_CONFIG_DIR = d;
+    writeFileSync(join(d, 'settings.json'), JSON.stringify({
+      provider: 'mineru', // 顶层是解码器配置，必须原样保留
+      extra: {
+        llm: JSON.stringify({ provider: 'minimax', model: 'MiniMax-M3', endpoint: 'https://api.minimaxi.com/v1' }),
+      },
+    }));
+    const f = tempFile('MINIMAX_API_KEY=fake-minimax-key-abc123\n');
+    const calls: string[] = [];
+    const llm = createLlmFromEnv({
+      dotEnvPath: f,
+      fetchImpl: (async (url: unknown) => {
+        calls.push(String(url));
+        return new Response(JSON.stringify({ choices: [{ message: { content: 'ok' } }] }), { status: 200 });
+      }) as typeof fetch,
+    });
+    expect(llm).toBeTruthy();
+    await llm!.complete('p');
+    expect(calls[0]).toBe('https://api.minimaxi.com/v1/chat/completions'); // 用 extra.llm 而非顶层 mineru
+  });
+
+  it('顶层 provider 旧配置仍兼读（无 extra.llm 时）', async () => {
+    const d = mkdtempSync(join(tmpdir(), 'ny-cfg-'));
+    dirs.push(d);
+    process.env.NANGYING_CONFIG_DIR = d;
+    writeFileSync(join(d, 'settings.json'), JSON.stringify({ provider: 'kimi', model: 'moonshot-v1-8k' }));
+    const f = tempFile('MOONSHOT_API_KEY=fake-moonshot-key-xyz789\n');
+    const calls: string[] = [];
+    const llm = createLlmFromEnv({
+      dotEnvPath: f,
+      fetchImpl: (async (url: unknown) => {
+        calls.push(String(url));
+        return new Response(JSON.stringify({ choices: [{ message: { content: 'ok' } }] }), { status: 200 });
+      }) as typeof fetch,
+    });
+    expect(llm).toBeTruthy();
+    await llm!.complete('p');
+    expect(calls[0]).toBe('https://api.moonshot.cn/v1/chat/completions');
+  });
 });

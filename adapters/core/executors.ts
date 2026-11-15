@@ -25,7 +25,7 @@ import { manageCourseAssets, deserializeStore, type AssetOp, type AssetStore } f
 import { loadAssetStore, saveAssetStore } from './assetStore.js';
 import { getJob, listJobs, cancelJob, cleanupJobs } from './jobQueue.js';
 import { readConfig, readApiKey, configDir } from './configStore.js';
-import { createDecoder } from './decoders/factory.js';
+import { createDecoder, KNOWN_DECODER_PROVIDERS } from './decoders/factory.js';
 import { exportCoursePackage } from '../../core/course/exportCoursePackage.js';
 import { writePackageZip, writePackageDir } from './packageWriter.js';
 import { registerTeacherAvatar } from '../../core/specialized/registerTeacherAvatar.js';
@@ -353,11 +353,13 @@ async function tryDecodeBinary(
       notes.push(`宿主解码器：${err instanceof Error ? err.message : String(err)}`);
     }
   }
-  // ③ 配置的外部解码器
+  // ③ 配置的外部解码器（settings.json 的 provider 是解码器枚举；LLM 配置在 extra.llm，不占此位）
   try {
     const config = readConfig();
     if (!config) {
       notes.push('配置解码器：未找到 settings.json');
+    } else if (!KNOWN_DECODER_PROVIDERS.has(config.provider.trim().toLowerCase())) {
+      notes.push(`配置解码器：provider="${config.provider}" 非文档解码器（LLM 配置请放 extra.llm），跳过`);
     } else {
       const decoder = createDecoder(config, () => readApiKey());
       const doc = await decoder.decode({ data, materialType });

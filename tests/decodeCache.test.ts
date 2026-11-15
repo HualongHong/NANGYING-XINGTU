@@ -85,4 +85,24 @@ describe('解码缓存', () => {
     expect(decodeCalls).toBe(1); // 缓存命中，引擎未被再次调用
     expect(JSON.stringify(r2.data)).toBe(JSON.stringify(r1.data));
   });
+
+  it('阶梯③：settings.json provider 是 LLM 值（非解码器）时跳过并给清晰注释，不再抛未知供应商', async () => {
+    const d = useTempConfigDir();
+    require('node:fs').writeFileSync(
+      join(d, 'settings.json'),
+      JSON.stringify({ provider: 'deepseek', model: 'deepseek-flash' }),
+    );
+    const adapter = new LocalAdapter({ envLlm: false });
+    const buf = Buffer.alloc(2048);
+    buf.write('%PDF-1.4 fake', 0, 'ascii');
+    buf.fill(0x00, 64);
+    const dir = mkdtempSync(join(tmpdir(), 'nangying-pdf-'));
+    dirs.push(dir);
+    const f = join(dir, 'doc.pdf');
+    require('node:fs').writeFileSync(f, buf);
+    const r = await adapter.invokeSkill('parse_course_material', { inputs: { materialFile: f } });
+    expect(r.level).toBe('degraded');
+    expect(String(r.degradationNote)).toContain('非文档解码器');
+    expect(String(r.degradationNote)).not.toContain('未知的解码器供应商');
+  });
 });

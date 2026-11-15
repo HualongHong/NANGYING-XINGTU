@@ -50,8 +50,16 @@ export function resolveChatEndpoint(raw: string | undefined, provider: string): 
 export function createLlmFromEnv(opts: { dotEnvPath?: string; fetchImpl?: typeof fetch } = {}): LLMProvider | undefined {
   const env = opts.dotEnvPath ? loadDotEnv(opts.dotEnvPath) : loadProjectDotEnv();
   const config = readConfig() ?? { provider: '' };
+  // LLM 配置优先取 extra.llm（setup-llm 写入的 JSON 串，与顶层解码器 provider 位分离互不占用）；
+  // 顶层 provider/model/endpoint 为旧版兼读（历史配置与手工编辑仍生效）
+  let llmCfg: Record<string, string> = {};
+  try {
+    llmCfg = JSON.parse(config.extra?.llm ?? '{}') as Record<string, string>;
+  } catch {
+    llmCfg = {};
+  }
   // provider 未配置时，从 .env 中实际存在的密钥反推提供商
-  let provider = (env.NANGYING_LLM_PROVIDER ?? config.provider ?? '').toLowerCase();
+  let provider = (env.NANGYING_LLM_PROVIDER ?? llmCfg.provider ?? config.provider ?? '').toLowerCase();
   if (!provider || !ENV_KEY_MAP[provider]) {
     const hit = Object.entries(ENV_KEY_MAP).find(([, v]) => Boolean(env[v]));
     if (hit) provider = hit[0];
@@ -62,8 +70,8 @@ export function createLlmFromEnv(opts: { dotEnvPath?: string; fetchImpl?: typeof
   if (!apiKey) apiKey = readApiKey();
   if (!apiKey) return undefined;
 
-  const endpoint = resolveChatEndpoint(env.NANGYING_LLM_ENDPOINT ?? config.endpoint, provider);
-  const model = env.NANGYING_LLM_MODEL ?? config.model ?? DEFAULT_MODEL[provider] ?? 'gpt-4o';
+  const endpoint = resolveChatEndpoint(env.NANGYING_LLM_ENDPOINT ?? llmCfg.endpoint ?? config.endpoint, provider);
+  const model = env.NANGYING_LLM_MODEL ?? llmCfg.model ?? config.model ?? DEFAULT_MODEL[provider] ?? 'gpt-4o';
   const fetchImpl = opts.fetchImpl ?? fetch;
 
   return {

@@ -18,6 +18,11 @@ describe('decoder factory', () => {
     ).toThrow('未知的解码器供应商');
   });
 
+  it('local-ocr 是合法解码器（settings_card/CLI 枚举与工厂一致）', () => {
+    const decoder = createDecoder({ provider: 'local-ocr' }, keyProvider);
+    expect(typeof decoder.decode).toBe('function');
+  });
+
   it('缺 key 时抛中文提示', async () => {
     const decoder = createDecoder({ provider: 'kimi' }, () => undefined);
     await expect(

@@ -8,7 +8,8 @@
  *   (e) 三方一致性：契约 md「输入声明」段 ↔ 注册表（gen-registry 生成）↔ executors 执行器
  *       （guarded 规格名/kind、IMPLEMENTED_SKILLS 清单），漂移即红；
  *   (f) skills.meta.json 与 manifest 的 skillId 一一对应（gen-registry 的元数据源）；
- *   (g) docs/SKILLS.md 速查表完整：每个注册技能有表格行且无多出行（防文档漂移）。
+ *   (g) docs/SKILLS.md 速查表完整：每个注册技能有表格行且无多出行（防文档漂移）；
+ *   (h) DSH preset 文案漂移：preset 声称的技能数 = 注册表技能数、配方数 = RECIPES.md 配方数。
  * 任一失败 exit 1 并打印中文错误；全部通过则打印中文成功摘要。
  */
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
@@ -64,6 +65,39 @@ try {
   }
 } catch (err) {
   errors.push(`docs/SKILLS.md 读取失败：${err.message}`);
+}
+
+// (h) DSH preset 文案漂移：preset 声称的技能数 = 注册表技能数，配方数 = RECIPES.md 配方数
+try {
+  const presetPath = join(root, 'dsh/preset-teaching-assistant.patch.yml');
+  if (existsSync(presetPath)) {
+    const preset = readFileSync(presetPath, 'utf8');
+    const skillClaims = [...preset.matchAll(/(\d+) 个 (?:`?mcp__nangying_starmap__\*`?|MCP) 技能/g)].map((m) => Number(m[1]));
+    const staleSkillClaims = [...new Set(skillClaims)].filter((n) => n !== registryIds.length);
+    if (skillClaims.length === 0) {
+      errors.push('DSH preset 未声明技能数（期望形如「38 个 mcp__nangying_starmap__* 技能」）');
+    } else if (staleSkillClaims.length > 0) {
+      errors.push(`DSH preset 技能数漂移：声明 ${staleSkillClaims.join('、')}，注册表实际 ${registryIds.length}（请同步 dsh/preset-teaching-assistant.patch.yml）`);
+    }
+    const recipesMd = readFileSync(join(root, 'docs/RECIPES.md'), 'utf8');
+    const recipeCount = (recipesMd.match(/^## 配方 \d+：/gm) ?? []).length;
+    const CN_NUM = { 一: 1, 二: 2, 两: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9, 十: 10 };
+    const recipeClaims = [
+      ...new Set(
+        [...preset.matchAll(/([一二两三四五六七八九十]|\d+)个配方/g)]
+          .map((m) => (/^\d+$/.test(m[1]) ? Number(m[1]) : CN_NUM[m[1]]))
+          .filter((n) => typeof n === 'number'),
+      ),
+    ];
+    const staleRecipeClaims = recipeClaims.filter((n) => n !== recipeCount);
+    if (recipeClaims.length === 0) {
+      errors.push('DSH preset 未声明配方数（期望形如「五个配方」）');
+    } else if (staleRecipeClaims.length > 0) {
+      errors.push(`DSH preset 配方数漂移：声明 ${staleRecipeClaims.join('、')}，RECIPES.md 实际 ${recipeCount} 个`);
+    }
+  }
+} catch (err) {
+  errors.push(`DSH preset 漂移校验失败：${err.message}`);
 }
 
 // (c) adapters 目录一致（平台适配器 = 含 profile.json 的目录；core/odlab 等非平台子目录不参与）
@@ -236,5 +270,6 @@ console.log(`  - 技能清单一致：共 ${registryIds.length} 个技能（共�
 console.log('  - 仓库卫生：.env 未跟踪、.env.example 无真实 key');
 console.log(`  - 技能文档齐备：${registry.skills.length} 个 docPath 全部存在`);
 console.log(`  - SKILLS.md 速查表完整：${registryIds.length} 行 ↔ 注册表一一对应`);
+console.log('  - DSH preset 无漂移：技能数/配方数与注册表、RECIPES.md 一致');
 console.log(`  - 适配器目录一致：${dirAdapters.join('、')}`);
 console.log('  - 三方一致：契约输入声明 ↔ 注册表（gen-registry 生成）↔ executors 别名/规格无漂移');

@@ -24,6 +24,7 @@ R21 迭代：examples/ 示例即活文档——配方 5 全链 + 配方 1 前半
 - **xlsx 课件解析链开通**：`BINARY_MATERIAL_TYPES` 与 core `KNOWN_TYPES` 增 `xlsx`——Excel 课件经二进制解码链到配置位③ MinerU 免费档 Office 原生解析（本地无 xlsx 原生抽取，MinerU 是唯一通道；平台不可用时按既有阶梯降级并注明）。`parse_course_material` 契约 hint 同步。
 - **validate.mjs 增 SKILLS.md 速查表完整性校验 (g)**：注册表 38 技能 ↔ docs/SKILLS.md 表格行一一对应（缺行/多出行即红），速查表漂移自此 CI 可查。
 - **DSH preset 与安装脚本漂移修正**：preset 描述/persona 的"19 个技能"→38、"四个配方"→五个，persona 补配方 5 五链与按需启用四技能（settings_card/submit_feedback/inspect_teaching_dataset/enrich_knowledge_evidence）；install-dsh.mjs 提示语改读注册表动态计数（`registrySkillCount()`），不再硬编码。
+- **validate.mjs 增 DSH preset 漂移校验 (h)**：preset 声称技能数（阿拉伯数字）与配方数（中文数字）分别对账注册表与 RECIPES.md，漂移即红（正反两向验证）。
 
 ### Added
 

@@ -293,4 +293,43 @@ describe('examples/ × 配方 2 链端到端演练（讲义 → 答疑库 → �
   });
 });
 
+describe('examples/ × 配方 3 链端到端演练（v1/v2 讲义 → 图谱 diff）', () => {
+  it('图谱 diff：修订版新增/丢失概念可量化', async () => {
+    const parseV1 = await adapter.invokeSkill('parse_course_material', {
+      inputs: { materialFile: `${ROOT}examples/讲义-光合作用基础.md` },
+    });
+    const parseV2 = await adapter.invokeSkill('parse_course_material', {
+      inputs: { materialFile: `${ROOT}examples/讲义-光合作用基础-v2.md` },
+    });
+    const graphV1 = await adapter.invokeSkill('extract_knowledge_graph', {
+      inputs: { structuredContent: parseV1.data },
+    });
+    const graphV2 = await adapter.invokeSkill('extract_knowledge_graph', {
+      inputs: { structuredContent: parseV2.data },
+    });
+    const r = await adapter.invokeSkill('diff_knowledge_graphs', {
+      inputs: { graphA: graphV1.data, graphB: graphV2.data, labelA: 'v1', labelB: 'v2' },
+    });
+    expect(r.level).toBe('full');
+    const data = r.data as {
+      entitiesAdded: string[];
+      entitiesRemoved: string[];
+      edgesAdded: unknown[];
+      edgesRemoved: unknown[];
+      similarity: { entities: number; edges: number; sectionTitles: number };
+      renamedCandidates: { a: string; b: string }[];
+    };
+    // v2 新增 3.5 光呼吸与 CAM 途径：新增概念必须可见
+    expect(data.entitiesAdded.some((l) => l.includes('光呼吸') || l.includes('CAM'))).toBe(true);
+    // v2 删除 3.4 影响光合速率的因素：丢失概念必须可见
+    expect(data.entitiesRemoved.length).toBeGreaterThan(0);
+    // 两版非完全相同也非不相干
+    expect(data.similarity.entities).toBeGreaterThan(0);
+    expect(data.similarity.entities).toBeLessThan(1);
+    expect(data.similarity.sectionTitles).toBeLessThan(1);
+    expect(Array.isArray(data.renamedCandidates)).toBe(true);
+  });
+});
+
+
 

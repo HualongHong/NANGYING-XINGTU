@@ -6,7 +6,8 @@
 
 | 文件 | 演练技能 | 说明 |
 |---|---|---|
-| `讲义-光合作用基础.md` | `parse_course_material` → `extract_knowledge_graph` → `design_course_structure` → `generate_teaching_script`（配方 1 前半） | 原创讲义：三节结构、概念定义、小结，含知识图谱友好标题层级 |
+| `讲义-光合作用基础.md` | `parse_course_material` → `extract_knowledge_graph` → `design_course_structure` → `generate_teaching_script`（配方 1 前半）；`build_qa_knowledge_base` → `recommend_learning_path`（配方 2） | 原创讲义：三节结构、概念定义、小结，含知识图谱友好标题层级 |
+| `讲义-光合作用基础-v2.md` | `diff_knowledge_graphs`（配方 3，与 v1 配对） | v1 修订版：3.3 节更名、删除 3.4 节、新增 3.5 光呼吸与 CAM 途径——diff 新增/丢失/相似度演示 |
 | `摘要集-青年生态学论坛.txt` | `parse_abstract_collection` → `select_research_evidence` → `compose_teaching_artifacts` → `audit_teaching_package`（配方 5 全链） | 虚构会议摘要集：`\f` 分页、封面无页码（Δ=1 偏移探测演示）、两个分会场标题、`0001` 式条目编号行（`entryPattern: "^\\d{4}\\s"`）、题名/作者/单位+邮编/关键词/正文版式 |
 | `章节知识点-生态系统生态学.json` | `select_research_evidence` 的 `sections` 入参 | 章节知识结构：节名+知识点+重点+易混概念（排除词），与摘要集内容呼应 |
 
@@ -20,4 +21,4 @@
 { "skillId": "parse_abstract_collection", "inputs": { "materialFile": "examples/摘要集-青年生态学论坛.txt", "entryPattern": "^\\d{4}\\s", "declaredTotal": 7 } }
 ```
 
-自动化守卫：`tests/examplesWalkthrough.test.ts` 对本目录材料跑配方 5 五技能全链（需求治理→解析→选文→组装→验收）、配方 1 前半链（讲义解析→知识图谱→课程结构→讲稿生成）与配方 2 链（讲义解析→知识图谱→答疑库→学习路径）。修改示例材料后运行 `npx vitest run tests/examplesWalkthrough.test.ts` 核对仍可通过。
+自动化守卫：`tests/examplesWalkthrough.test.ts` 对本目录材料跑配方 5 五技能全链（需求治理→解析→选文→组装→验收）、配方 1 前半链（讲义解析→知识图谱→课程结构→讲稿生成）、配方 2 链（讲义解析→知识图谱→答疑库→学习路径）与配方 3 链（v1/v2 讲义图谱 diff）。修改示例材料后运行 `npx vitest run tests/examplesWalkthrough.test.ts` 核对仍可通过。

@@ -52,7 +52,7 @@
 ```bash
 node scripts/validate.mjs   # 契约三方一致性自检（md 声明 ↔ 注册表 ↔ 执行器）
 pnpm run gen:registry       # 由契约声明段重新生成注册表（改入参后执行）
-pnpm run ci                 # 校验 + 类型检查 + 测试（441 用例）
+pnpm run ci                 # 校验 + 类型检查 + 测试（用例数见 pnpm test 输出，守卫测试在 tests/）
 pnpm config                 # 解码器/LLM 配置向导
 ```
 

@@ -235,3 +235,62 @@ describe('examples/ × 配方 1 前半链端到端演练（讲义 → 图谱 →
   });
 });
 
+describe('examples/ × 配方 2 链端到端演练（讲义 → 答疑库 → 学习路径）', () => {
+  const lectureFile = `${ROOT}examples/讲义-光合作用基础.md`;
+
+  async function graphFromLecture() {
+    const parsed = await adapter.invokeSkill('parse_course_material', {
+      inputs: { materialFile: lectureFile },
+    });
+    const extracted = await adapter.invokeSkill('extract_knowledge_graph', {
+      inputs: { structuredContent: parsed.data },
+    });
+    return { parsed, graph: extracted };
+  }
+
+  it('① 答疑库：定义/关系/流程意图问答对生成', async () => {
+    const { parsed, graph } = await graphFromLecture();
+    const r = await adapter.invokeSkill('build_qa_knowledge_base', {
+      inputs: {
+        graph: graph.data,
+        paragraphs: (parsed.data as { paragraphs: unknown[] }).paragraphs,
+      },
+    });
+    expect(r.level).toBe('full');
+    const data = r.data as {
+      qaPairs: { intent: string; question: string; answer: string; conceptIds: string[] }[];
+    };
+    expect(data.qaPairs.length).toBeGreaterThan(0);
+    const intents = new Set(data.qaPairs.map((q) => q.intent));
+    expect(intents.has('concept_definition')).toBe(true);
+    for (const qa of data.qaPairs) {
+      expect(qa.question.length).toBeGreaterThan(0);
+      expect(qa.answer.length).toBeGreaterThan(0);
+    }
+    // 光合作用定义问答必须存在且答案不空（示例讲义核心概念）
+    const photoDef = data.qaPairs.find(
+      (q) => q.intent === 'concept_definition' && q.question.includes('光合作用'),
+    );
+    expect(photoDef).toBeTruthy();
+  });
+
+  it('② 学习路径：以核心概念为目标生成先修序序列', async () => {
+    const { graph } = await graphFromLecture();
+    const graphData = graph.data as { entities: { id: string; label: string }[] };
+    const goal = graphData.entities.find((e) => e.label === '光合作用');
+    expect(goal).toBeTruthy();
+    const r = await adapter.invokeSkill('recommend_learning_path', {
+      inputs: { graph: graph.data, profile: { goalConceptIds: [goal!.id], availableMinutes: 60 } },
+    });
+    expect(r.level).toBe('full');
+    const data = r.data as {
+      learningSequence: string[];
+      coverage?: { goal?: string[]; missing?: string[] };
+      steps?: { reason?: string }[];
+    };
+    expect(data.learningSequence.length).toBeGreaterThan(0);
+    expect(data.learningSequence).toContain(goal!.id);
+  });
+});
+
+

@@ -20,4 +20,4 @@
 { "skillId": "parse_abstract_collection", "inputs": { "materialFile": "examples/摘要集-青年生态学论坛.txt", "entryPattern": "^\\d{4}\\s", "declaredTotal": 7 } }
 ```
 
-自动化守卫：`tests/examplesWalkthrough.test.ts` 对本目录材料跑配方 5 五技能全链（需求治理→解析→选文→组装→验收）与配方 1 前半链（讲义解析→知识图谱→课程结构→讲稿生成）。修改示例材料后运行 `npx vitest run tests/examplesWalkthrough.test.ts` 核对仍可通过。
+自动化守卫：`tests/examplesWalkthrough.test.ts` 对本目录材料跑配方 5 五技能全链（需求治理→解析→选文→组装→验收）、配方 1 前半链（讲义解析→知识图谱→课程结构→讲稿生成）与配方 2 链（讲义解析→知识图谱→答疑库→学习路径）。修改示例材料后运行 `npx vitest run tests/examplesWalkthrough.test.ts` 核对仍可通过。

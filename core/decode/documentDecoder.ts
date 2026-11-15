@@ -37,6 +37,8 @@ export interface DecoderConfig {
   model?: string;
   endpoint?: string;
   timeoutMs?: number;
+  /** 扩展字段（均为字符串值）：port（HTTP 端口）、sciverseEndpoint/odlabEndpoint（平台端点覆盖）、
+   * llm（JSON 串 {"provider","model","endpoint"}——setup-llm 写入的 LLM 配置，与顶层解码器位分离） */
   extra?: Record<string, string>;
 }
 

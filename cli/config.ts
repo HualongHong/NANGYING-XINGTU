@@ -127,6 +127,10 @@ function summarize(localOcrAvailable?: boolean): string {
   return lines.join('\n');
 }
 
+/**
+ * 交互向导：TTY 人工使用正常；非 TTY 管道输入遇 EOF 会静默退出（readline/promises 特性，
+ * 与 scripts/setup-llm.helper.mjs 同）——自动化验证请用参数模式（--provider/--show/--clear）。
+ */
 async function interactiveWizard(): Promise<void> {
   const rl = readline.createInterface({ input, output });
   try {

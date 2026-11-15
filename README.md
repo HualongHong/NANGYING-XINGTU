@@ -42,7 +42,7 @@
 │   └── odlab/             # OpenDataLab 体系对接（MinerU 解析 / SciVerse 学术证据 / OpenDataLab 数据集探查；DianShi 预留）
 ├── server/                # MCP（stdio）与 HTTP JSON-RPC 最小协议层
 ├── manifests/             # plugin.manifest.json、skills.registry.json（gen-registry 生成）、skills.meta.json
-├── examples/              # 开源示例材料（原创 CC0）：讲义 md + 虚构会议摘要集 txt + 章节知识点 json，直接演练配方
+├── examples/              # 开源示例材料（原创 CC0）：讲义 md + 虚构会议摘要集 txt + 章节知识点 json，直接演练配方（端到端守卫 npx vitest run tests/examplesWalkthrough.test.ts）
 ├── docs/                  # 用户文档：技能速查、接入指南、工作流配方（开发过程文档一律不入库）
 └── scripts/               # validate.mjs 三方一致性自检、gen-registry.mjs 注册表生成、ci.mjs
 ```

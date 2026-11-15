@@ -3,12 +3,12 @@
  *
  * 用法：
  *   pnpm build                    # 先编译（脚本消费 dist）
- *   pnpm config --provider kimi --api-key-env MOONSHOT_KEY   # 配置 LLM（密钥进 secrets.json）
- *   node scripts/eval-llm-filter.mjs                        # 用 settings.json 的配置跑全量
+ *   node scripts/install-dsh.mjs --setup-llm                 # 配置 LLM（写 settings.json extra.llm；密钥进 secrets.json）
+ *   node scripts/eval-llm-filter.mjs                        # 用 extra.llm 的配置跑全量
  *   node scripts/eval-llm-filter.mjs --provider minimax --model MiniMax-M3 \
  *     --endpoint https://api.minimaxi.com/v1 --materials 讲义,米氏常数,纸层析 --out result.json
  *
- * CLI 覆盖参数（缺省回退 settings.json 的值）：
+ * CLI 覆盖参数（缺省回退 extra.llm/旧顶层配置的值）：
  *   --provider X --model Y --endpoint URL   # 同一份 secrets，切换入口各跑一次
  *   --api-key-env VAR                       # 从环境变量取 key（见下）
  *   --materials 讲义,米氏常数                 # 逗号分隔或 *glob* 文件名过滤（默认全量）
@@ -39,9 +39,9 @@ import { loadDotEnv } from '../dist/adapters/core/dotenv.js';
 loadDotEnv(join(process.cwd(), '.env'));
 
 const USAGE = `用法：node scripts/eval-llm-filter.mjs [选项]
-  --provider X      提供商（缺省取 settings.json 的 provider）
-  --model Y         模型名（缺省取 settings.json 的 model）
-  --endpoint URL    OpenAI 兼容端点（缺省取 settings.json 的 endpoint）
+  --provider X      提供商（缺省取 settings.json extra.llm 的 provider，旧顶层配置兼读）
+  --model Y         模型名（缺省取 extra.llm 的 model）
+  --endpoint URL    OpenAI 兼容端点（缺省取 extra.llm 的 endpoint）
   --api-key-env V   从环境变量 V 取 key（也可用 .env 的 MINIMAX_API_KEY/DEEPSEEK_API_KEY/MOONSHOT_API_KEY）
   --materials 列表  逗号分隔或 *glob* 文件名过滤（默认全量 15 材料）
   --out FILE        结果 JSON 落盘（默认仅打印 stdout）
@@ -98,13 +98,20 @@ function fail(msg) {
 // 读取配置（复用适配层路径约定）
 const settingsFile = join(configDir(), 'settings.json');
 const secretsFile = join(configDir(), 'secrets.json');
-// settings.json 仅为回退配置：CLI 与 .env 齐全时无需此文件
+// settings.json 仅为回退配置：CLI 与 .env 齐全时无需此文件。
+// LLM 配置优先取 extra.llm（setup-llm 写入）；顶层 provider/model/endpoint 是解码器配置/旧版兼读
 const config = existsSync(settingsFile)
   ? JSON.parse(readFileSync(settingsFile, 'utf8'))
   : {};
+let llmCfg = {};
+try {
+  llmCfg = JSON.parse(config.extra?.llm ?? '{}');
+} catch {
+  llmCfg = {};
+}
 
 // 密钥解析：--api-key-env → provider→环境变量映射（.env）→ secrets.json，全程不打印 key
-const cliProviderLower = (cli.provider ?? config.provider ?? '').toLowerCase();
+const cliProviderLower = (cli.provider ?? llmCfg.provider ?? config.provider ?? '').toLowerCase();
 const ENV_KEY_MAP = {
   minimax: 'MINIMAX_API_KEY',
   deepseek: 'DEEPSEEK_API_KEY',
@@ -149,8 +156,8 @@ function resolveEndpoint(raw) {
   }
   return e;
 }
-const endpoint = resolveEndpoint(cli.endpoint ?? config.endpoint);
-const model = cli.model ?? config.model ?? (provider === 'kimi' || provider === 'moonshot' ? 'moonshot-v1-8k' : 'gpt-4o');
+const endpoint = resolveEndpoint(cli.endpoint ?? llmCfg.endpoint ?? config.endpoint);
+const model = cli.model ?? llmCfg.model ?? config.model ?? (provider === 'kimi' || provider === 'moonshot' ? 'moonshot-v1-8k' : 'gpt-4o');
 console.log(`=== 术语度过滤验收 ===\n提供商：${provider}  模型：${model}\n端点：${endpoint}\n`);
 
 /** 真实 LLMProvider：OpenAI 兼容 chat/completions */

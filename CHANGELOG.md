@@ -27,7 +27,7 @@ R21 迭代：examples/ 示例即活文档——配方 5 全链 + 配方 1 前半
 - **validate.mjs 增 DSH preset 漂移校验 (h)**：preset 声称技能数（阿拉伯数字）与配方数（中文数字）分别对账注册表与 RECIPES.md，漂移即红（正反两向验证）。
 - **tsconfig.build.json 补 cli/****：`pnpm run build` 此前不产出 `dist/cli/config.js` 而 `pnpm config` 与文档命令都指向它（新鲜克隆构建后 CLI 即坏）——include 增 `cli/**/*.ts` 根治；CLI 全通道冒烟通过（写入 0600 脱敏/回显/清除/空值拒写/未知供应商拒写）。
 - **validate.mjs 增 dist 引用漂移校验 (i)**：package.json 脚本指向的 `dist/*.js` 其源 ts 必须被 build include 覆盖（CLI 事故类自此 CI 可查，正反两向验证）。
-- **配置双占用冲突修复（setup-llm × 解码器配置）**：settings.json 顶层 provider 是解码器枚举，而 setup-llm 向导把 LLM provider（deepseek/minimax）写同一位 —— 覆盖既有解码器配置且被阶梯③当未知供应商。现 LLM 配置改存 `extra.llm`（setup-llm merge 写入，解码器配置与端口等 extra 字段原样保留），`createLlmFromEnv` 优先读 `extra.llm`、顶层旧配置兼读。顺带修复同类缺口：解码器工厂补 `local-ocr` 分支（settings_card/CLI 枚举早已允许，工厂缺失会导致配置即坏）；阶梯③对非解码器 provider 从"抛未知供应商"改为"跳过并给清晰注释"。
+- **配置双占用冲突修复（setup-llm × 解码器配置）**：settings.json 顶层 provider 是解码器枚举，而 setup-llm 向导把 LLM provider（deepseek/minimax）写同一位 —— 覆盖既有解码器配置且被阶梯③当未知供应商。现 LLM 配置改存 `extra.llm`（setup-llm merge 写入，解码器配置与端口等 extra 字段原样保留），`createLlmFromEnv` 优先读 `extra.llm`、顶层旧配置兼读。同 bug 类全部清扫：`eval-llm-filter.mjs` 缺省回退改 extra.llm（原会把解码器 mineru 当 LLM 调）、`install-dsh --doctor` LLM 行按分位分列（解码器顶层/LLM extra.llm）、`pnpm config --show` 渲染 extra.llm 行、`.env.example` 补 MOONSHOT_API_KEY 与 `NANGYING_LLM_*` 调试三件套。顺带修复同类缺口：解码器工厂补 `local-ocr` 分支（settings_card/CLI 枚举早已允许，工厂缺失会导致配置即坏）；阶梯③对非解码器 provider 从"抛未知供应商"改为"跳过并给清晰注释"。
 
 ### Added
 

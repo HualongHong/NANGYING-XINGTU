@@ -51,7 +51,8 @@ for (const skill of registry.skills) {
   }
 }
 
-// (g) docs/SKILLS.md 速查表完整性：每个注册技能都有表格行，行数与技能数相等（防文档漂移）
+// (g) docs/SKILLS.md 速查表完整性：每个注册技能都有表格行，行数与技能数相等（防文档漂移）；
+//     头部计数句「共 N 个技能：共享型 X 个…特化型 Y 个」也对账 manifest
 try {
   const skillsMd = readFileSync(join(root, 'docs/SKILLS.md'), 'utf8');
   const rowIds = [...skillsMd.matchAll(/^\| ([a-z][a-z0-9_]*) \|/gm)].map((m) => m[1]);
@@ -62,6 +63,17 @@ try {
   const extraRows = rowIds.filter((id) => !registryIds.includes(id));
   if (extraRows.length > 0) {
     errors.push(`docs/SKILLS.md 速查表多出行（注册表无此技能）：${extraRows.join('、')}`);
+  }
+  const headerClaim = skillsMd.match(/共 (\d+) 个技能：共享型 (\d+) 个（[^）]*）\+ 特化型 (\d+) 个/);
+  if (!headerClaim) {
+    errors.push('docs/SKILLS.md 缺少头部计数句（期望形如「共 38 个技能：共享型 31 个…特化型 7 个」）');
+  } else {
+    const [, total, shared, specialized] = headerClaim.map(Number);
+    if (total !== registryIds.length || shared !== manifest.skills.shared.length || specialized !== manifest.skills.specialized.length) {
+      errors.push(
+        `docs/SKILLS.md 头部计数漂移：声明 共${total}/共享${shared}/特化${specialized}，实际 共${registryIds.length}/共享${manifest.skills.shared.length}/特化${manifest.skills.specialized.length}`,
+      );
+    }
   }
 } catch (err) {
   errors.push(`docs/SKILLS.md 读取失败：${err.message}`);

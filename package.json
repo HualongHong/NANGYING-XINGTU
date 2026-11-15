@@ -5,6 +5,9 @@
   "type": "module",
   "private": true,
   "license": "Apache-2.0",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "validate": "node scripts/validate.mjs",
     "gen:registry": "node scripts/gen-registry.mjs",

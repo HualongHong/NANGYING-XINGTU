@@ -19,3 +19,5 @@
 ```json
 { "skillId": "parse_abstract_collection", "inputs": { "materialFile": "examples/摘要集-青年生态学论坛.txt", "entryPattern": "^\\d{4}\\s", "declaredTotal": 7 } }
 ```
+
+自动化守卫：`tests/examplesWalkthrough.test.ts` 对本目录材料跑配方 5 五技能全链（需求治理→解析→选文→组装→验收）。修改示例材料后运行 `npx vitest run tests/examplesWalkthrough.test.ts` 核对仍可通过。

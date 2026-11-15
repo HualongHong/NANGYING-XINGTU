@@ -152,3 +152,86 @@ describe('examples/ × 配方 5 五技能端到端演练', () => {
     expect(data.passed).toBe(true);
   });
 });
+
+describe('examples/ × 配方 1 前半链端到端演练（讲义 → 图谱 → 结构 → 讲稿）', () => {
+  const lectureFile = `${ROOT}examples/讲义-光合作用基础.md`;
+
+  it('① 课件解析：章节层级 + 候选池非空', async () => {
+    const r = await adapter.invokeSkill('parse_course_material', {
+      inputs: { materialFile: lectureFile },
+    });
+    expect(r.level).toBe('full');
+    const data = r.data as {
+      structuredSections: { title: string; level: number }[];
+      paragraphs: unknown[];
+      knowledgePointCandidates: { term: string }[];
+    };
+    expect(data.paragraphs.length).toBeGreaterThan(0);
+    expect(data.knowledgePointCandidates.length).toBeGreaterThan(0);
+    const titles = data.structuredSections.map((s) => s.title);
+    expect(titles.some((t) => t.includes('光反应'))).toBe(true);
+    expect(titles.some((t) => t.includes('碳反应'))).toBe(true);
+  });
+
+  it('② 知识图谱：概念实体覆盖讲义核心概念', async () => {
+    const parsed = await adapter.invokeSkill('parse_course_material', {
+      inputs: { materialFile: lectureFile },
+    });
+    const r = await adapter.invokeSkill('extract_knowledge_graph', {
+      inputs: { structuredContent: parsed.data },
+    });
+    expect(r.level).toBe('full');
+    const data = r.data as { entities: { id: string; label: string }[] };
+    expect(data.entities.length).toBeGreaterThan(0);
+    const labels = data.entities.map((e) => e.label);
+    expect(labels).toContain('光合作用');
+    // 启发式 NER（无 LLM）词粒度：核心概念 + 讲义标志性术语至少命中一类
+    expect(labels.some((l) => ['ATP', 'NADPH', '二氧化碳', '光能', '化学能'].includes(l))).toBe(true);
+  });
+
+  it('③ 课程结构：模块/课时/环节三级结构可生成', async () => {
+    const parsed = await adapter.invokeSkill('parse_course_material', {
+      inputs: { materialFile: lectureFile },
+    });
+    const extracted = await adapter.invokeSkill('extract_knowledge_graph', {
+      inputs: { structuredContent: parsed.data },
+    });
+    const r = await adapter.invokeSkill('design_course_structure', {
+      inputs: { graph: extracted.data, objectives: { audience: '本科生', totalMinutes: 90 } },
+    });
+    expect(r.level).toBe('full');
+    const data = r.data as {
+      teachingStructure: { title: string; lessons: { id: string; minutes?: number }[] }[];
+    };
+    expect(data.teachingStructure.length).toBeGreaterThan(0);
+    expect(data.teachingStructure[0].lessons.length).toBeGreaterThan(0);
+  });
+
+  it('④ 讲稿生成：分镜场景口播字幕齐备', async () => {
+    const parsed = await adapter.invokeSkill('parse_course_material', {
+      inputs: { materialFile: lectureFile },
+    });
+    const extracted = await adapter.invokeSkill('extract_knowledge_graph', {
+      inputs: { structuredContent: parsed.data },
+    });
+    const designed = await adapter.invokeSkill('design_course_structure', {
+      inputs: { graph: extracted.data, objectives: { audience: '本科生', totalMinutes: 90 } },
+    });
+    const r = await adapter.invokeSkill('generate_teaching_script', {
+      inputs: { structure: designed.data },
+    });
+    expect(r.level).toBe('full');
+    const data = r.data as {
+      storyboardScript: { scenes: { voiceover: string; subtitle: string; minutes: number }[] }[];
+    };
+    expect(data.storyboardScript.length).toBeGreaterThan(0);
+    const scenes = data.storyboardScript[0].scenes;
+    expect(scenes.length).toBeGreaterThan(0);
+    for (const scene of scenes) {
+      expect(scene.voiceover.length).toBeGreaterThan(0);
+      expect(scene.subtitle).toBe(scene.voiceover);
+      expect(scene.minutes).toBeGreaterThan(0);
+    }
+  });
+});
+

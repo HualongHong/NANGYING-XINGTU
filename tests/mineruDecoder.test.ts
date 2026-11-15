@@ -212,6 +212,34 @@ describe('MinerU 解码器（adapters/odlab/mineru.ts）', () => {
     }
   });
 
+  it('免费档：xlsx 走 Office 原生解析，file_name 携带正确扩展名', async () => {
+    const bodies: string[] = [];
+    const { fetchImpl } = mockFetch([
+      {
+        match: /\/api\/v1\/agent\/parse\/file$/,
+        responses: [{ body: { code: 0, data: { task_id: 't-xlsx', file_url: 'https://oss-mineru.example/upx' } } }],
+      },
+      { match: /oss-mineru\.example\/upx$/, responses: [{ status: 200, body: '' }] },
+      {
+        match: /\/api\/v1\/agent\/parse\/t-xlsx$/,
+        responses: [{ body: { code: 0, data: { state: 'done', markdown_url: 'https://cdn-mineru.example/x.md' } } }],
+      },
+      { match: /cdn-mineru\.example\/x\.md$/, responses: [{ body: MD }] },
+    ]);
+    const capturing = (async (url: string, init?: RequestInit) => {
+      if (url.includes('/parse/file') && init?.body) bodies.push(String(init.body));
+      return fetchImpl(url, init);
+    }) as typeof fetch;
+    const decoder = createMineruDecoder({
+      config: { provider: 'mineru' },
+      keyProvider: () => undefined,
+      fetchImpl: capturing,
+    });
+    const doc = await decoder.decode({ data: new Uint8Array([1]), materialType: 'xlsx' });
+    expect(doc.content).toBe(MD);
+    expect(bodies[0]).toContain('"file_name":"document.xlsx"');
+  });
+
   it('extractMarkdownFromZip：优先 full.md，无 md 返回 undefined', async () => {
     expect(extractMarkdownFromZip(zipWithMd())).toBe(MD);
     const noMd = buildMiniZip([{ name: 'doc.txt', data: Buffer.from('x') }]);

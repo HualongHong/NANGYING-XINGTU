@@ -131,7 +131,7 @@ function descriptorOf(skillId: string): SkillDescriptor {
 /** 二进制材料体积上限（默认 20MB）：超限不进解码链，直接结构化报错（大文件曾打挂整个 MCP 服务） */
 const MAX_BINARY_BYTES = 20 * 1024 * 1024;
 /** 二进制材料类型（按扩展名推断）：这些类型才适用体积上限与解码链 */
-const BINARY_MATERIAL_TYPES = new Set(['pptx', 'ppt', 'pdf', 'docx', 'doc', 'image']);
+const BINARY_MATERIAL_TYPES = new Set(['pptx', 'ppt', 'pdf', 'docx', 'doc', 'image', 'xlsx']);
 
 /** 按扩展名推断材料类型（契约：解码归适配层） */
 function inferMaterialType(filePath: string): string {
@@ -147,6 +147,8 @@ function inferMaterialType(filePath: string): string {
       return 'pptx';
     case 'docx':
       return 'docx';
+    case 'xlsx':
+      return 'xlsx';
     case 'pdf':
       return 'pdf';
     case 'srt':

@@ -99,6 +99,17 @@ describe('知识点候选抽取', () => {
 });
 
 describe('降级路径', () => {
+  it('xlsx 属已知类型：解码后的内容按文本正常结构化（MinerU Office 原生解析产物落地路径）', async () => {
+    const content = '实验数据记录\n\n吸光度随浓度线性上升，相关系数达标。';
+    const result = await parseCourseMaterial({ content, materialType: 'xlsx' });
+    expect(result.level).toBe('full');
+    expect(result.degradationNote ?? '').not.toContain('退化为纯文本');
+    expect(result.data!.paragraphs.map((p) => p.text)).toEqual([
+      '实验数据记录',
+      '吸光度随浓度线性上升，相关系数达标。',
+    ]);
+  });
+
   it('未知格式输入 → degraded + 纯文本直通', async () => {
     const content = '这是某二进制格式的可读文本\n第二行内容';
     const result = await parseCourseMaterial({

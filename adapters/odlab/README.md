@@ -4,7 +4,7 @@
 
 | 平台 | 文件 | 能力 | 接入方式 | 档位 |
 |---|---|---|---|---|
-| MinerU (mineru.net) | `mineru.ts` | 高精度文档解析（表格→HTML、公式→LaTeX、扫描件 OCR） | 免费档免 Token（`/api/v1/agent/parse/file` **签名上传**：JSON 申请→OSS PUT→轮询→Markdown CDN，≤10MB/20 页，IP 限频）；精准档 Bearer Token（`/api/v4/file-urls/batch` 批量上传通道 batch=1→PUT→轮询 `/extract-results/batch/{id}`→zip，≤200MB；每日 1000 页高优额度以官网为准） | **Tier 1 已实装**（2026-11 现行契约重写，旧 multipart 直传已被官方废弃）：`provider="mineru"` 进 `parse_course_material` 解码阶梯（配置位③）；平台失败自动回落本地链路 |
+| MinerU (mineru.net) | `mineru.ts` | 高精度文档解析（表格→HTML、公式→LaTeX、扫描件 OCR） | 免费档免 Token（`/api/v1/agent/parse/file` **签名上传**：JSON 申请→OSS PUT→轮询→Markdown CDN，≤10MB/20 页，IP 限频）；精准档 Bearer Token（`/api/v4/file-urls/batch` 批量上传通道 batch=1→PUT→轮询 `/extract-results/batch/{id}`→zip，≤200MB；每日 1000 页高优额度以官网为准） | **Tier 1 已实装**（2026-11 现行契约重写，旧 multipart 直传已被官方废弃）：`provider="mineru"` 进 `parse_course_material` 解码阶梯（配置位③，PDF/图片/Docx/PPTx/Xlsx）；平台失败自动回落本地链路 |
 | SciVerse (sciverse.space) | `sciverse.ts` | Sci-Base 学术基座：4.66 亿+ 元数据、2826 万全文证据段 | Console > Tokens 创建 key（起步额度免费）；官方 `sciverse` npm SDK（optionalDependencies + pnpm 补丁修复其 ESM 扩展名） | **Tier 1 已实装**：技能 `enrich_knowledge_evidence`（第 25 个共享技能）；无 key/失败 → degraded，图谱不动 |
 | OpenDataLab 数据集 (opendatalab.com) | `datasets.ts` | 数据集中心：仓库元信息 + 文件清单探查 | OpenXLab OpenAPI（`openxlab.org.cn/datasets/api/v2/`，端点与 AK/SK→JWT 流程复刻自官方 openxlab SDK 源码）；**公共仓库匿名可探查**；受限仓库用 AK/SK（getJwt 的 HMAC 挑战签名） | **Tier 1 已实装**：技能 `inspect_teaching_dataset`（第 26 个共享技能）；401 → AUTH_REQUIRED 配置引导；清单失败 degraded 半量返回 |
 | DianShi 点石 | —（预留） | Sci-Align 层：化学反应检索与逆合成 RAG（生命/化学跨模态对齐） | 同一 console key 体系，**按账号权限申请接入** | **Tier 2 预留**：接入点=复用 `sciverse.ts` 同型工厂（`createSciverseService` 加 `service:'dianshi'` 方法映射）；化学生物课程增强位，待平台授权后实装 |

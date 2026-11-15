@@ -143,6 +143,7 @@ const KNOWN_TYPES = new Set([
   'pdf',
   'doc',
   'docx',
+  'xlsx',
 ]);
 
 /** 基础中英文停用词（启发式词频过滤用） */

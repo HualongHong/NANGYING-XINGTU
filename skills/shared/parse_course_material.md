@@ -35,7 +35,7 @@ inputs:
   - name: materialType
     kind: string
     required: false
-    hint: "材料类型标识（md/txt/srt/vtt/pptx/pdf/docx…），按扩展名自动推断，一般无需传"
+    hint: "材料类型标识（md/txt/srt/vtt/pptx/pdf/docx/xlsx…），按扩展名自动推断，一般无需传；xlsx 走二进制解码链（MinerU 免费档 Office 原生解析）"
   - name: workspaceRoot
     kind: string
     required: false

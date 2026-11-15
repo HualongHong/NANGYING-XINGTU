@@ -7,7 +7,8 @@
  *   (d) 仓库卫生：git 跟踪文件不得包含 .env；.env.example 不得含真实形态 key；
  *   (e) 三方一致性：契约 md「输入声明」段 ↔ 注册表（gen-registry 生成）↔ executors 执行器
  *       （guarded 规格名/kind、IMPLEMENTED_SKILLS 清单），漂移即红；
- *   (f) skills.meta.json 与 manifest 的 skillId 一一对应（gen-registry 的元数据源）。
+ *   (f) skills.meta.json 与 manifest 的 skillId 一一对应（gen-registry 的元数据源）；
+ *   (g) docs/SKILLS.md 速查表完整：每个注册技能有表格行且无多出行（防文档漂移）。
  * 任一失败 exit 1 并打印中文错误；全部通过则打印中文成功摘要。
  */
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
@@ -47,6 +48,22 @@ for (const skill of registry.skills) {
   if (!skill.docPath || !existsSync(join(root, skill.docPath))) {
     errors.push(`技能 ${skill.skillId} 的文档不存在：${skill.docPath}`);
   }
+}
+
+// (g) docs/SKILLS.md 速查表完整性：每个注册技能都有表格行，行数与技能数相等（防文档漂移）
+try {
+  const skillsMd = readFileSync(join(root, 'docs/SKILLS.md'), 'utf8');
+  const rowIds = [...skillsMd.matchAll(/^\| ([a-z][a-z0-9_]*) \|/gm)].map((m) => m[1]);
+  const missingRows = registryIds.filter((id) => !rowIds.includes(id));
+  if (missingRows.length > 0) {
+    errors.push(`docs/SKILLS.md 速查表缺少技能行：${missingRows.join('、')}`);
+  }
+  const extraRows = rowIds.filter((id) => !registryIds.includes(id));
+  if (extraRows.length > 0) {
+    errors.push(`docs/SKILLS.md 速查表多出行（注册表无此技能）：${extraRows.join('、')}`);
+  }
+} catch (err) {
+  errors.push(`docs/SKILLS.md 读取失败：${err.message}`);
 }
 
 // (c) adapters 目录一致（平台适配器 = 含 profile.json 的目录；core/odlab 等非平台子目录不参与）
@@ -218,5 +235,6 @@ console.log('校验通过，囊萤星图插件自检成功：');
 console.log(`  - 技能清单一致：共 ${registryIds.length} 个技能（共享 ${manifest.skills.shared.length} 个，特化 ${manifest.skills.specialized.length} 个）`);
 console.log('  - 仓库卫生：.env 未跟踪、.env.example 无真实 key');
 console.log(`  - 技能文档齐备：${registry.skills.length} 个 docPath 全部存在`);
+console.log(`  - SKILLS.md 速查表完整：${registryIds.length} 行 ↔ 注册表一一对应`);
 console.log(`  - 适配器目录一致：${dirAdapters.join('、')}`);
 console.log('  - 三方一致：契约输入声明 ↔ 注册表（gen-registry 生成）↔ executors 别名/规格无漂移');

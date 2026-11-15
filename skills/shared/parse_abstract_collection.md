@@ -18,6 +18,7 @@
 - `sessionHints`（可选）：分会场/栏目标题提示词数组（内置：分会场/专题/专场/Session/论坛/报告会）
 - `declaredTotal`（可选）：摘要集自述收录篇数（封面/版权页）——算解析覆盖率，差额如实写交付说明，不强行补齐
 - `workspaceRoot`（可选）：materialFile 为相对路径时优先相对它解析
+- `async`（可选）：`true` 时提交异步作业、毫秒级返回 jobId，用 `manage_async_tasks` 轮询（不受宿主超时限制）——大摘要集（数百页）建议走异步
 
 ## 输入声明
 
@@ -59,6 +60,10 @@ inputs:
     kind: string
     required: false
     hint: "materialFile 相对路径解析根目录（MCP 子进程 cwd 与宿主工作区不一致时必传）"
+  - name: async
+    kind: boolean
+    required: false
+    hint: "true 时提交异步作业、毫秒级返回 jobId，用 manage_async_tasks 轮询（不受宿主超时限制）；大摘要集建议走异步"
 ```
 
 ## 输出

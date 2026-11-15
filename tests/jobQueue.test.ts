@@ -205,6 +205,40 @@ describe('async: true 提交（重技能）', () => {
     expect(asyncTerms).toEqual(syncTerms);
   }, 30000);
 
+  it('parse_abstract_collection async：jobId 毫秒级返回；query 结果与同步一致', async () => {
+    useTempJobsDir();
+    const adapter = new LocalAdapter({ envLlm: false });
+    const pages = [
+      '分会场一 草地生态\n1',
+      '0001 放牧对草原群落稳定性的影响\n张三\n北京大学生态研究中心 100871\n关键词：稳定性\n本文研究了放牧强度对群落稳定性的影响。\n2',
+      '0002 频度定律的验证\n王五\n南京土壤研究所 210008\n关键词：频度\n本文验证了 Raunkiaer 频度定律。\n3',
+    ];
+    const inputs = { pages, entryPattern: '^\\d{4}\\s', declaredTotal: 2 };
+
+    const sync = await adapter.invokeSkill('parse_abstract_collection', { inputs });
+    const asyncRes = await adapter.invokeSkill('parse_abstract_collection', { inputs: { ...inputs, async: true } });
+    expect(asyncRes.level).toBe('full');
+    const jobId = (asyncRes.data as { jobId: string }).jobId;
+    expect(typeof jobId).toBe('string');
+
+    const poll = async (): Promise<{ status: string; result?: { data: { records: Array<{ title: string }> } } }> => {
+      const t0 = Date.now();
+      for (;;) {
+        const q = await adapter.invokeSkill('manage_async_tasks', { inputs: { operation: 'query', jobId } });
+        const job = (q.data as { job: { status: string; result?: { data: { records: Array<{ title: string }> } } } }).job;
+        if (job.status === 'done') return job;
+        if (job.status === 'error') throw new Error('异步作业失败：' + JSON.stringify(job.result ?? ''));
+        if (Date.now() - t0 > 15_000) throw new Error('轮询超时：作业 15s 未 done');
+        await new Promise((r) => setTimeout(r, 50));
+      }
+    };
+    const job = await poll();
+    expect(job.status).toBe('done');
+    const syncTitles = (sync.data as { records: Array<{ title: string }> }).records.map((r) => r.title);
+    const asyncTitles = (job.result?.data.records ?? []).map((r) => r.title);
+    expect(asyncTitles).toEqual(syncTitles);
+  }, 30000);
+
   it('list 与 cancel 经 manage_async_tasks；不支持的技能 async 报错', async () => {
     useTempJobsDir();
     const adapter = new LocalAdapter({ llm: counted, envLlm: false });

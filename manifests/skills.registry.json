@@ -1713,7 +1713,8 @@
         "entryPattern",
         "sessionHints",
         "declaredTotal",
-        "workspaceRoot"
+        "workspaceRoot",
+        "async"
       ],
       "required": [],
       "inputSpecs": [
@@ -1764,6 +1765,12 @@
           "kind": "string",
           "required": false,
           "hint": "materialFile 相对路径解析根目录（MCP 子进程 cwd 与宿主工作区不一致时必传）"
+        },
+        {
+          "name": "async",
+          "kind": "boolean",
+          "required": false,
+          "hint": "true 时提交异步作业、毫秒级返回 jobId，用 manage_async_tasks 轮询（不受宿主超时限制）；大摘要集建议走异步"
         }
       ],
       "outputs": [
@@ -1790,7 +1797,8 @@
         "families",
         "weights",
         "percentile",
-        "perSectionMin"
+        "perSectionMin",
+        "async"
       ],
       "required": [
         "records",
@@ -1835,6 +1843,12 @@
           "kind": "number",
           "required": false,
           "hint": "每节至少入选条数（默认 1）：覆盖不足时放宽该节阈值补入并标必复核，不让热门主题挤满名单"
+        },
+        {
+          "name": "async",
+          "kind": "boolean",
+          "required": false,
+          "hint": "true 时提交异步作业、毫秒级返回 jobId，用 manage_async_tasks 轮询（不受宿主超时限制）；LLM 词族派生 + 大候选池建议走异步"
         }
       ],
       "outputs": [

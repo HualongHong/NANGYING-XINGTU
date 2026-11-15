@@ -520,6 +520,8 @@ const ASYNC_CAPABLE = new Set([
   'extract_knowledge_graph',
   'fuse_knowledge_graphs',
   'translate_multilingual',
+  'parse_abstract_collection',
+  'select_research_evidence',
 ]);
 
 /** 包装执行器：归一化（别名/字符串解析）→ 类型校验 → （async 模式提交作业）/ 同步执行；异常转为结构化错误结果 */

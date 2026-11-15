@@ -16,6 +16,7 @@
 - `weights`（可选）：字段权重 `{ title?, keyword?, body?, affiliation? }`，默认 `{3, 2, 1, 0.5}`（一般题名>关键词>正文>单位/分会场，**初值为建议值可改**）
 - `percentile`（可选）：相对分位阈值 `(0,1]`，默认 `0.2`（前 20%）——**用相对分位不用绝对分数线**（3.5：不同摘要集规模与学科词频差异极大，绝对分数线不可移植）；规模小取较大比例、规模大取较小比例
 - `perSectionMin`（可选）：每节至少入选条数（非负整数，默认 1）——覆盖面约束优先于总分
+- `async`（可选）：`true` 时提交异步作业、毫秒级返回 jobId，用 `manage_async_tasks` 轮询（不受宿主超时限制）——LLM 词族派生 + 大候选池场景建议走异步
 
 ## 输入声明
 
@@ -50,6 +51,10 @@ inputs:
     kind: number
     required: false
     hint: "每节至少入选条数（默认 1）：覆盖不足时放宽该节阈值补入并标必复核，不让热门主题挤满名单"
+  - name: async
+    kind: boolean
+    required: false
+    hint: "true 时提交异步作业、毫秒级返回 jobId，用 manage_async_tasks 轮询（不受宿主超时限制）；LLM 词族派生 + 大候选池建议走异步"
 ```
 
 ## 输出

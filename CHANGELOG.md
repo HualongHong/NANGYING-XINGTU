@@ -2,6 +2,18 @@
 
 本插件遵循"技能即契约"的迭代纪律，所有行为变更同步契约文档与 DEV_LOG。格式参照 keepachangelog 简版。
 
+## [Unreleased]
+
+R22b 迭代：GitHub CI 首次转绿——历史 23+ run 全红系四层叠加根因，逐层解剖修复：
+
+### Fixed
+
+- **CI 第一层（pnpm 版本错配）**：lockfile 由 pnpm 12 生成（`patchedDependencies` 内容哈希形态），workflow 用 pnpm 10（路径形态）→ `ERR_PNPM_LOCKFILE_CONFIG_MISMATCH` 安装即败。`pnpm/action-setup` version 10 → 12.18.0。
+- **CI 第二层（allowBuilds 占位值）**：`pnpm-workspace.yaml` 的 `allowBuilds` 键名本是 pnpm 12 正解（`pnpm approve-builds --all` 回写证实），但值为脚手架占位串 `'set this to true or false'` 而非 `true`，构建脚本审批从未生效；CI 模式（CI=true）下被忽略 build scripts 是硬错误 `ERR_PNPM_IGNORED_BUILDS`。改为三包显式 true（esbuild/sharp/tesseract.js 脚本均本地无网络操作）。顺带撤 `setup-node` 的 pnpm store 缓存（失败期缓存元数据会重致安装误判）。
+- **CI 第三层（tessdata 缺席）**：`scannedOcr`/`engineStatus` 测试按"真实探测不硬编码"要求仓库根 `tessdata/`（chi_sim+eng），但 traineddata 按 .gitignore 不入库 → `resolveOcrLangPath` 返回 null、OCR 引擎 `optional-not-installed`。workflow 增"准备 OCR 语言包"步骤：tessdata_fast@main 拉取 + sha256 钉死（chi_sim a5fcb6f0… 与本地同源已验证；eng 以 main 7d4322bd… 为准）。
+- **CI 第四层（dist 未构建）**：`tests/installDoctor.test.ts` 动态 import `scripts/install-dsh.mjs`，其静态 import `../dist/adapters/core/configStore.js`；dist/ gitignored 且 CI 从不构建 → vitest 10 秒速败（Failed to load url）。workflow 类型检查后增 `pnpm run build`；`scripts/ci.mjs` 同步插构建步（fresh clone 本地 `pnpm run ci` 不再隐性依赖残留 dist）。
+- **CI 可观测性**：校验/类型检查/测试分步（失败步即注解）；测试步失败时 grep 过滤（FAIL/×/Error）回注 `::error::` 注解——无日志匿名权限下可读真实错误（本轮定位全靠此通道）。
+
 ## [1.8.0] - 2026-11-18
 
 R22 迭代：多平台上架分发——按 KimiWORK / Qoder / DSH / WorkBuddy / TRAE 五个目标平台的上架标准，新增共享打包器 `scripts/pack-release.mjs`，从单一事实源（技能契约 + meta + plugin.manifest）生成 `release/` 五分发产物（gitignored，随 Release 附件分发）。产物经 16 例结构测试锁定 + 敏感信息扫描 + SHA256SUMS 对账；产物内 runtime 冒烟通过（38 工具全列）。

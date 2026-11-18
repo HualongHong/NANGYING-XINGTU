@@ -8,6 +8,7 @@ import { spawnSync } from 'node:child_process';
 const steps = [
   ['校验契约', 'node scripts/validate.mjs'],
   ['类型检查', 'pnpm typecheck'],
+  ['构建 dist', 'pnpm run build'],
   ['单元与集成测试', 'pnpm test'],
   ['反馈闭环监控', 'node scripts/feedback-loop.mjs'],
 ];
@@ -21,4 +22,4 @@ for (const [name, command] of steps) {
   }
 }
 
-console.log('\nCI 全部通过：校验 ✓ 类型检查 ✓ 测试 ✓');
+console.log('\nCI 全部通过：校验 ✓ 类型检查 ✓ 构建 ✓ 测试 ✓');

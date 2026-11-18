@@ -37,6 +37,9 @@ jobs:
       - name: 类型检查
         run: pnpm typecheck
 
+      - name: 构建 dist（install-dsh 等脚本消费 dist，测试依赖其存在）
+        run: pnpm run build
+
       - name: 测试 + 反馈闭环监控
         run: |
           pnpm test 2>&1 | tee /tmp/test-output.log

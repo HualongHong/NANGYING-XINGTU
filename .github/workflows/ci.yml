@@ -31,5 +31,13 @@ jobs:
           echo "a5fcb6f0db1e1d6d8522f39db4e848f05984669172e584e8d76b6b3141e1f730  tessdata/chi_sim.traineddata" | sha256sum -c -
           echo "7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2  tessdata/eng.traineddata" | sha256sum -c -
 
-      - name: 校验 + 类型检查 + 测试
-        run: pnpm run ci
+      - name: 契约校验（validate 九重）
+        run: node scripts/validate.mjs
+
+      - name: 类型检查
+        run: pnpm typecheck
+
+      - name: 测试 + 反馈闭环监控
+        run: |
+          pnpm test
+          node scripts/feedback-loop.mjs

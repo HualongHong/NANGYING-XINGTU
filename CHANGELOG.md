@@ -2,7 +2,7 @@
 
 本插件遵循"技能即契约"的迭代纪律，所有行为变更同步契约文档与 DEV_LOG。格式参照 keepachangelog 简版。
 
-## [Unreleased]（1.8.0 预备）
+## [1.8.0] - 2026-11-18
 
 R22 迭代：多平台上架分发——按 KimiWORK / Qoder / DSH / WorkBuddy / TRAE 五个目标平台的上架标准，新增共享打包器 `scripts/pack-release.mjs`，从单一事实源（技能契约 + meta + plugin.manifest）生成 `release/` 五分发产物（gitignored，随 Release 附件分发）。产物经 16 例结构测试锁定 + 敏感信息扫描 + SHA256SUMS 对账；产物内 runtime 冒烟通过（38 工具全列）。
 

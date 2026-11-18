@@ -1,6 +1,8 @@
+# pnpm 工作区配置：构建脚本审批（CI 模式下被忽略的 build scripts 是硬错误，
+# 必须显式 true 允许；三个脚本均为本地校验/无操作，安全）+ 依赖补丁。
 allowBuilds:
-  esbuild: set this to true or false
-  sharp: set this to true or false
-  tesseract.js: set this to true or false
+  esbuild: true
+  sharp: true
+  tesseract.js: true
 patchedDependencies:
   sciverse@1.0.1: patches/sciverse@1.0.1.patch

@@ -42,7 +42,7 @@ jobs:
           pnpm test 2>&1 | tee /tmp/test-output.log
           TEST_STATUS=${PIPESTATUS[0]}
           if [ "$TEST_STATUS" -ne 0 ]; then
-            tail -n 50 /tmp/test-output.log | sed 's/^/::error::/'
+            grep -E "FAIL|×|Failed Tests|Tests  |Error" /tmp/test-output.log | head -n 25 | sed 's/^/::error::/'
             exit "$TEST_STATUS"
           fi
           node scripts/feedback-loop.mjs

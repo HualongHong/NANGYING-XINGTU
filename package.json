@@ -17,7 +17,8 @@
     "serve:mcp": "node dist/server/mcp.js",
     "serve:http": "node dist/server/http.js",
     "ci": "node scripts/ci.mjs",
-    "config": "node dist/cli/config.js"
+    "config": "node dist/cli/config.js",
+    "pack:release": "node scripts/pack-release.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.6.3",

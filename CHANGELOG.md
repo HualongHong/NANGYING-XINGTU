@@ -4,6 +4,14 @@
 
 ## [Unreleased]（1.8.0 预备）
 
+R22 迭代：多平台上架分发——按 KimiWORK / Qoder / DSH / WorkBuddy / TRAE 五个目标平台的上架标准，新增共享打包器 `scripts/pack-release.mjs`，从单一事实源（技能契约 + meta + plugin.manifest）生成 `release/` 五分发产物（gitignored，随 Release 附件分发）。产物经 16 例结构测试锁定 + 敏感信息扫描 + SHA256SUMS 对账；产物内 runtime 冒烟通过（38 工具全列）。
+
+### Added
+
+- **`scripts/pack-release.mjs` 分发打包器**（`pnpm run pack:release`）：技能 SKILL.md 统一生成（frontmatter name/description + 契约正文）；按平台规则转换技能命名（kimiwork=snake / qoder·dsh·workbuddy=kebab，DSH 技能名 `[a-z0-9-]+` 铁律）；五配方命令（recipe-1~5）kimiwork/qoder 共享；kimiwork/qoder/trae 内嵌 runtime（dist 拷贝，stdio MCP 38 工具，Node ≥ 20，可选引擎缺失自动降级）；dsh 包附 preset 交付块（与 `install-dsh.mjs --with-preset` 同源）；workbuddy 标准两层市场布局（marketplace.json + plugins/<name>/）；trae 按现行能力以 MCP+规则分发（mcp.json + rules/ + 38 篇参考文档）。内置敏感信息扫描（私钥/AWS AK/sk- 前缀/硬编码凭证）命中即中止。
+- **`tests/releasePack.test.ts` 产物结构守卫（16 例）**：五平台清单存在性与字段规则（kimi 根清单/name 正则、qoder manifest 不在根、DSH preset 块、workbuddy 两层布局、trae mcp+rules）；38 技能全平台齐备 + frontmatter 校验 + snake↔kebab 映射无损；配方命令 5 个；LICENSE/README 齐备；SHA256SUMS 与文件一一对应；敏感扫描通过。
+- **`docs/RELEASE.md` 发布手册**：五平台上架标准对照表、构建/安装指引、MCP runtime 说明、发布检查单。
+
 R20 迭代：科教融合备课工作流——由真实备课实践（基础生态学 4 轮 / 土壤学 7 轮，经验沉淀于 dev-docs/feedback/20261115，本地不入库）蒸馏出 5 个新共享技能，组成「章节 + 会议摘要集 → 四件套」全链：需求治理 → 摘要集解析 → 研究例证选文 → 四件套组装 → 教学包验收。纯本地零密钥，无 LLM 可跑通（降级骨架 + 诚实占位）。测试 506 → 559。
 
 ### Added

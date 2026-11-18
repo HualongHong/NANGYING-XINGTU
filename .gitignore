@@ -7,6 +7,7 @@
 node_modules/
 dist/
 build/
+release/
 coverage/
 .venv/
 __pycache__/

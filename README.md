@@ -56,4 +56,4 @@ pnpm run ci                 # 校验 + 类型检查 + 测试（用例数见 pnpm
 pnpm config                 # 解码器/LLM 配置向导
 ```
 
-更多见 [CHANGELOG.md](CHANGELOG.md)、[docs/SKILLS.md](docs/SKILLS.md)、[docs/USAGE.md](docs/USAGE.md)、[docs/RECIPES.md](docs/RECIPES.md)。
+更多见 [CHANGELOG.md](CHANGELOG.md)、[docs/SKILLS.md](docs/SKILLS.md)、[docs/USAGE.md](docs/USAGE.md)、[docs/RECIPES.md](docs/RECIPES.md)、[docs/RELEASE.md](docs/RELEASE.md)。

@@ -39,6 +39,6 @@ kimiwork/qoder/trae 三包内置 `runtime/`（`dist/` 全量拷贝，stdio 入�
 
 1. `pnpm run build && pnpm run pack:release`
 2. `pnpm run validate`（九重契约校验）+ `pnpm test`（含 releasePack 16 例）
-3. 产物冒烟：`printf '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | node release/kimiwork/runtime/server/mcp.js` 应回 `serverInfo: nangying-starmap/1.8.0`
+3. 产物冒烟：`printf '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | node release/kimiwork/runtime/server/mcp.js` 应回 `serverInfo: nangying-starmap/<当前版本>`（与 plugin.manifest version 一致）
 4. 版本号三处对齐：`package.json`、`manifests/plugin.manifest.json`、产物清单（打包器自动取 manifest）
 5. `release/` 为 gitignored——上架提交的是事实源与打包器，产物在发布工作流中生成并随 GitHub Release 附件分发

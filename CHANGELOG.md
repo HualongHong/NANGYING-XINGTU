@@ -2,6 +2,17 @@
 
 本插件遵循"技能即契约"的迭代纪律，所有行为变更同步契约文档与 DEV_LOG。格式参照 keepachangelog 简版。
 
+## [Unreleased]（1.9.0 预备 · KAG-1）
+
+R23 迭代（KAG-1 第一轮）：教学知识库——SPEC（dev-docs/SPEC-kb-rag-kag.md，评审三裁定：KAG-lite + 演进式 SPG 对标）落地第一刀。新增 2 个共享技能（38→40）：`build_teaching_knowledge_base`（材料+图谱 → 持久化 KB）与 `query_teaching_knowledge_base`（KAG 式混合检索证据包）。测试 605 → 638。
+
+### Added
+
+- **`core/kb/` 新模块（纯 TS 零 IO）**：`kbSchema.ts` 声明式 schema（实体类型/谓词/枚举/字段白名单/护栏上限全部数据化——schema-first 演进锚点，校验器与后续 LF 语法由它驱动）+ `kbTypes.ts`（schema `nangying-starmap/kb@1`：概念 origin 分层 corpus/external/inferred、段落级证据含 citation 六字段、三类关联、倒排+邻接索引、coverageGaps 缺口清单）+ `kbIndex.ts`（倒排复用 qa 分词口径 + 概念邻接表）+ `kbLinks.ts`（概念↔证据 = EntitySource 索引直映射 ∪ 标签包含匹配；证据↔证据共享概念限额防平方爆炸；条目↔概念 wordfamily 确定性挂接不凑数）+ `kbRetrieve.ts`（五段管线：倒排召回∪向量接口位 → 图谱邻域扩展 → 确定性融合重排含 scoreParts 得分构成 → token 预算裁剪 → GapReport 零命中诚实出口）+ `buildTeachingKnowledgeBase.ts`（构建 + schema 驱动校验器，违规不静默）。
+- **两技能契约与接线**：契约 md（输入声明 YAML 单一事实源）→ 注册表 40 技能；executors 三处接线（import/IMPLEMENTED_SKILLS/rawExecutors+guarded）；build 支持 `async`（入 ASYNC_CAPABLE）与 `persist`（默认落盘 `configDir()/kb/<kbId>/kb.json`，原子写随 assetStore 纪律）；query 支持 kb 内存直传 / kbId 落盘加载（加载先过 schema 校验）。
+- **测试 33 例**：kbSchema 9（枚举/谓词/护栏/白名单 + 校验器五类违规抓出）、kbBuild 14（构建/挂接/citation 未提供不补造/externalRatio/wordfamily 不凑数/coverageGaps/确定性/坏输入骨架 + 执行器持久化往返/结构化错误/guarded 必填）、kbRetrieve 10（召回/GraphExpand 开关/融合确定性+得分构成/topK/预算裁剪/零命中不硬答/GapReport/关系边/向量接口位/出处完整性）。
+- **计数同步 38→40**：SKILLS.md（头部+表格两行）、README、DSH preset（描述+persona）、4 处测试计数断言、releasePack 期望数与 mcpServer 工具清单。
+
 ## [1.8.1] - 2026-11-23
 
 GitHub CI 首次转绿——历史 23+ run 全红系四层叠加根因，逐层解剖修复：

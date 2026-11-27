@@ -41,7 +41,9 @@
       "parse_abstract_collection",
       "select_research_evidence",
       "compose_teaching_artifacts",
-      "audit_teaching_package"
+      "audit_teaching_package",
+      "build_teaching_knowledge_base",
+      "query_teaching_knowledge_base"
     ],
     "specialized": [
       "register_teacher_avatar",

@@ -2007,6 +2007,155 @@
       "usage": "四件套交付前验收：C1–C8 验收链——零外链/禁用词/占位符/编号一致/来源口径/配对（纯检查）+ 编译写盘打印同步（delegated 程序指引）+ 红线触发清单"
     },
     {
+      "skillId": "build_teaching_knowledge_base",
+      "name": "教学知识库构建",
+      "type": "shared",
+      "description": "材料+图谱构建持久化教学知识库：概念分层、段落级证据、关联与索引一体，六环节统一取材面，含 coverageGaps 缺口清单。",
+      "inputs": [
+        "materials",
+        "graph",
+        "assessments",
+        "qaPairs",
+        "kbId",
+        "persist",
+        "async"
+      ],
+      "required": [
+        "materials",
+        "graph"
+      ],
+      "inputSpecs": [
+        {
+          "name": "materials",
+          "kind": "array",
+          "required": true,
+          "hint": "'材料数组 [{ materialId, parse, origin?, citation? }]；parse 为 parse_course_material 完整输出'",
+          "producer": [
+            "parse_course_material"
+          ]
+        },
+        {
+          "name": "graph",
+          "kind": "object",
+          "required": true,
+          "hint": "'课程知识图谱（extract/fuse 完整输出，含 entities/relations）'",
+          "producer": [
+            "extract_knowledge_graph",
+            "fuse_knowledge_graphs"
+          ]
+        },
+        {
+          "name": "assessments",
+          "kind": "array",
+          "required": false,
+          "hint": "'题目数组 [{ id, question, options? }]，wordfamily 回挂概念'",
+          "producer": [
+            "generate_assessment"
+          ]
+        },
+        {
+          "name": "qaPairs",
+          "kind": "array",
+          "required": false,
+          "hint": "'问答数组 [{ id, question, answer }]，wordfamily 回挂概念'",
+          "producer": [
+            "build_qa_knowledge_base"
+          ]
+        },
+        {
+          "name": "kbId",
+          "kind": "string",
+          "required": false,
+          "hint": "'知识库标识（缺省按材料内容哈希派生）'"
+        },
+        {
+          "name": "persist",
+          "kind": "boolean",
+          "required": false,
+          "hint": "'是否落盘 .nangying-starmap/kb/<kbId>/kb.json（默认 true）'"
+        },
+        {
+          "name": "async",
+          "kind": "boolean",
+          "required": false,
+          "hint": "'true 提交异步作业（大语料），manage_async_tasks 轮询'"
+        }
+      ],
+      "outputs": [
+        "knowledgeBase",
+        "persisted"
+      ],
+      "dependsOn": [],
+      "degradation": "输入非完整形态返回空 KB 骨架（degraded+引导）；条目挂接 wordfamily 确定性命中，未命中如实不挂；不虚构证据与引用",
+      "docPath": "skills/shared/build_teaching_knowledge_base.md",
+      "usage": "教学知识库构建（KAG-1）：材料+图谱 → 概念分层/段落级证据/关联/索引一体的持久化 KB，六环节（教案/课件/讲稿/测试/辅导/出卷）统一取材面；含 coverageGaps 缺口清单"
+    },
+    {
+      "skillId": "query_teaching_knowledge_base",
+      "name": "教学知识库检索",
+      "type": "shared",
+      "description": "KAG 式混合检索：倒排∪图谱扩展→确定性融合重排→token 预算→缺口报告；输出带出处与得分构成的证据包。",
+      "inputs": [
+        "query",
+        "kb",
+        "kbId",
+        "topK",
+        "budgetTokens",
+        "expand"
+      ],
+      "required": [
+        "query"
+      ],
+      "inputSpecs": [
+        {
+          "name": "query",
+          "kind": "string",
+          "required": true,
+          "hint": "'自然语言查询（概念名/问题/主题）'"
+        },
+        {
+          "name": "kb",
+          "kind": "object",
+          "required": false,
+          "hint": "'KB artifact 对象（build_teaching_knowledge_base 输出）'",
+          "producer": [
+            "build_teaching_knowledge_base"
+          ]
+        },
+        {
+          "name": "kbId",
+          "kind": "string",
+          "required": false,
+          "hint": "'已落盘知识库标识（与 kb 二选一）'"
+        },
+        {
+          "name": "topK",
+          "kind": "number",
+          "required": false,
+          "hint": "'返回证据条数上限，默认 5'"
+        },
+        {
+          "name": "budgetTokens",
+          "kind": "number",
+          "required": false,
+          "hint": "'证据包 token 预算，默认 2000'"
+        },
+        {
+          "name": "expand",
+          "kind": "boolean",
+          "required": false,
+          "hint": "'图谱扩展（默认 true）：命中概念邻域证据以 via:graph 带出'"
+        }
+      ],
+      "outputs": [
+        "evidencePack"
+      ],
+      "dependsOn": [],
+      "degradation": "kb/kbId 缺失结构化报错；库内无命中输出 coverageGaps+采集建议绝不硬答；向量召回缺席自动纯倒排（R24 增强位）",
+      "docPath": "skills/shared/query_teaching_knowledge_base.md",
+      "usage": "教学知识库检索（KAG 式混合检索）：倒排∪图谱扩展→确定性融合重排→token 预算→缺口报告；输出证据包（每条带出处/得分构成），六环节统一取材入口"
+    },
+    {
       "skillId": "register_teacher_avatar",
       "name": "教师数字分身注册",
       "type": "specialized",

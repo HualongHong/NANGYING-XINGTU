@@ -5,7 +5,7 @@
  * 执行器职责：materialFile 的文件读取/解码归适配层（本模块，允许 Node API），
  * core 层只收纯文本；执行器原样透回 core 的 SkillResult。
  */
-import { readFileSync, statSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync, readFileSync, statSync, writeFileSync, mkdirSync } from 'node:fs';
 import { isAbsolute, join, resolve as resolvePath, dirname } from 'node:path';
 import type { LLMProvider, SkillContext } from '../../core/llm.js';
 import type { SkillDescriptor, SkillResult } from '../../core/types.js';
@@ -73,6 +73,9 @@ import {
 } from '../../core/evidence/selectEvidence.js';
 import { composeTeachingArtifacts } from '../../core/course/composeTeachingArtifacts.js';
 import { auditTeachingPackage } from '../../core/qa/auditTeachingPackage.js';
+import { buildTeachingKnowledgeBase, validateTeachingKnowledgeBase, type BuildTeachingKnowledgeBaseInput } from '../../core/kb/buildTeachingKnowledgeBase.js';
+import { kbRetrieve } from '../../core/kb/kbRetrieve.js';
+import type { TeachingKnowledgeBase } from '../../core/kb/kbTypes.js';
 import type { AdapterBase } from './adapter.base.js';
 import registry from '../../manifests/skills.registry.json' with { type: 'json' };
 
@@ -116,6 +119,8 @@ const IMPLEMENTED_SKILLS = [
   'select_research_evidence',
   'compose_teaching_artifacts',
   'audit_teaching_package',
+  'build_teaching_knowledge_base',
+  'query_teaching_knowledge_base',
 ] as const;
 
 type ImplementedSkillId = (typeof IMPLEMENTED_SKILLS)[number];
@@ -526,6 +531,7 @@ const ASYNC_CAPABLE = new Set([
   'translate_multilingual',
   'parse_abstract_collection',
   'select_research_evidence',
+  'build_teaching_knowledge_base',
 ]);
 
 /** 包装执行器：归一化（别名/字符串解析）→ 类型校验 → （async 模式提交作业）/ 同步执行；异常转为结构化错误结果 */
@@ -1717,6 +1723,63 @@ const rawExecutors: Record<
       data: result,
     };
   },
+  // 教学知识库构建（KAG-1 R23）：材料+图谱 → KB artifact；persist 默认落盘 configDir()/kb/<kbId>/kb.json
+  build_teaching_knowledge_base: async (inputs) => {
+    const result = buildTeachingKnowledgeBase(inputs as unknown as BuildTeachingKnowledgeBaseInput);
+    const persist = (inputs as { persist?: boolean }).persist !== false;
+    let persisted: string | undefined;
+    if (persist && result.data) {
+      persisted = join(configDir(), 'kb', result.data.kbId.replace(/[\/:*?"<>|\s]/g, '_'), 'kb.json');
+      mkdirSync(dirname(persisted), { recursive: true });
+      writeFileSync(persisted, JSON.stringify(result.data), 'utf8');
+    }
+    return {
+      ...result,
+      data: { knowledgeBase: result.data, ...(persisted ? { persisted } : {}) },
+    };
+  },
+  // 教学知识库检索（KAG-1 R23）：kb 内存直传或 kbId 落盘加载 → 五段管线证据包
+  query_teaching_knowledge_base: async (inputs) => {
+    const fail = (note: string, example: string) => ({
+      skillId: 'query_teaching_knowledge_base' as const,
+      level: 'unavailable' as const,
+      errorCode: 'INVALID_INPUT' as const,
+      degradationNote: note,
+      example,
+    });
+    const { kb: inlineKb, kbId, query, topK, budgetTokens, expand } = inputs as {
+      kb?: TeachingKnowledgeBase; kbId?: string; query: string;
+      topK?: number; budgetTokens?: number; expand?: boolean;
+    };
+    let kb = inlineKb;
+    let loadedFrom: string | undefined;
+    if (!kb && typeof kbId === 'string' && kbId) {
+      const p = join(configDir(), 'kb', kbId.replace(/[\/:*?"<>|\s]/g, '_'), 'kb.json');
+      if (!existsSync(p)) {
+        return fail(`知识库 ${kbId} 不存在（${p}）；请先运行 build_teaching_knowledge_base 构建`, '{ "kbId": "kb-abc123", "query": "…" }');
+      }
+      try {
+        kb = JSON.parse(readFileSync(p, 'utf8')) as TeachingKnowledgeBase;
+        loadedFrom = p;
+      } catch (e) {
+        return fail(`知识库文件解析失败：${p}（${e instanceof Error ? e.message : String(e)}）`, '{ "kbId": "kb-abc123", "query": "…" }');
+      }
+    }
+    if (!kb) {
+      return fail('缺少知识库：请传 kb（build_teaching_knowledge_base 输出）或 kbId（已落盘标识）二选一', '{ "kb": "$build_teaching_knowledge_base.knowledgeBase", "query": "…" }');
+    }
+    const violations = validateTeachingKnowledgeBase(kb);
+    const pack = kbRetrieve(kb, query, { topK, budgetTokens, expand });
+    return {
+      skillId: 'query_teaching_knowledge_base' as const,
+      level: violations.length > 0 ? ('degraded' as const) : ('full' as const),
+      degradationNote: [
+        violations.length > 0 ? `KB schema 校验违规 ${violations.length} 条：${violations.slice(0, 3).join('；')}` : '',
+        loadedFrom ? `已从落盘加载：${loadedFrom}` : '',
+      ].filter(Boolean).join('；'),
+      data: { evidencePack: pack },
+    };
+  },
   describe_capabilities: async (inputs) => {
     const { skillId } = inputs as { skillId?: string };
     const all = (registry as { skills: SkillDescriptor[] }).skills;
@@ -1861,6 +1924,13 @@ const executors: Record<
   audit_teaching_package: guarded('audit_teaching_package', [
     { name: 'artifacts', kind: 'object', hint: '{ slides?, reading?, html?, lessonPlan? }：文本或 reading 的 { pages }' },
   ], rawExecutors.audit_teaching_package),
+  build_teaching_knowledge_base: guarded('build_teaching_knowledge_base', [
+    { name: 'materials', kind: 'array', hint: '[{ materialId, parse, origin?, citation? }]；parse 为 parse_course_material 完整输出' },
+    { name: 'graph', kind: 'object', hint: 'extract_knowledge_graph 或 fuse_knowledge_graphs 输出（含 entities 数组）' },
+  ], rawExecutors.build_teaching_knowledge_base),
+  query_teaching_knowledge_base: guarded('query_teaching_knowledge_base', [
+    { name: 'query', kind: 'string', hint: '自然语言查询（概念名/问题/主题）' },
+  ], rawExecutors.query_teaching_knowledge_base),
   describe_capabilities: guarded('describe_capabilities', [], rawExecutors.describe_capabilities),
   generate_assessment: guarded('generate_assessment', [
     { name: 'graph', kind: 'object', hint: 'extract_knowledge_graph 或 fuse_knowledge_graphs 的输出（含 entities 数组）' },

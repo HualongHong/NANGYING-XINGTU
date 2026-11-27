@@ -608,6 +608,31 @@
       "dependsOn": [],
       "degradation": "产物文本未提供的判项 delegated，passed 只统计已执行判项（未验证不冒充通过）；输入非法结构化报错",
       "docPath": "skills/shared/audit_teaching_package.md"
+    },
+    "build_teaching_knowledge_base": {
+      "skillId": "build_teaching_knowledge_base",
+      "name": "教学知识库构建",
+      "type": "shared",
+      "description": "材料+图谱构建持久化教学知识库：概念分层、段落级证据、关联与索引一体，六环节统一取材面，含 coverageGaps 缺口清单。",
+      "outputs": [
+        "knowledgeBase",
+        "persisted"
+      ],
+      "dependsOn": [],
+      "degradation": "输入非完整形态返回空 KB 骨架（degraded+引导）；条目挂接 wordfamily 确定性命中，未命中如实不挂；不虚构证据与引用",
+      "docPath": "skills/shared/build_teaching_knowledge_base.md"
+    },
+    "query_teaching_knowledge_base": {
+      "skillId": "query_teaching_knowledge_base",
+      "name": "教学知识库检索",
+      "type": "shared",
+      "description": "KAG 式混合检索：倒排∪图谱扩展→确定性融合重排→token 预算→缺口报告；输出带出处与得分构成的证据包。",
+      "outputs": [
+        "evidencePack"
+      ],
+      "dependsOn": [],
+      "degradation": "kb/kbId 缺失结构化报错；库内无命中输出 coverageGaps+采集建议绝不硬答；向量召回缺席自动纯倒排（R24 增强位）",
+      "docPath": "skills/shared/query_teaching_knowledge_base.md"
     }
   }
 }

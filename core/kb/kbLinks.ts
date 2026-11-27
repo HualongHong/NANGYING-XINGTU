@@ -33,6 +33,7 @@ export function linkConceptsToEvidence(
   singleMaterialId: string | null,
 ): Record<string, string[]> {
   const out: Record<string, string[]> = {};
+  const evIds = new Set(evidence.map((e) => e.id));
   const entityByLabel = new Map<string, { paragraphIndexes: number[] }>();
   for (const n of graph.entities) {
     if (n.kind !== 'concept') continue;
@@ -40,11 +41,12 @@ export function linkConceptsToEvidence(
   }
   for (const c of concepts) {
     const hits = new Set<string>();
-    // a) 索引直映射（单材料）
+    // a) 索引直映射（单材料；图谱出处可能越界于本材料段落数，仅收真实存在的证据 id）
     if (singleMaterialId) {
       const entity = entityByLabel.get(normalizeLabel(c.label));
       for (const pIdx of entity?.paragraphIndexes ?? []) {
-        hits.add(`ev-${singleMaterialId}-p${pIdx}`);
+        const evId = `ev-${singleMaterialId}-p${pIdx}`;
+        if (evIds.has(evId)) hits.add(evId);
       }
     }
     // b) 标签/别名包含匹配（归一化后子串；标签长度 ≥2 防单字噪声）

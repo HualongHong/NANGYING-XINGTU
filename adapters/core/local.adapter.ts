@@ -7,22 +7,26 @@
 import { AdapterBase } from './adapter.base.js';
 import { registerSharedSkills } from './executors.js';
 import { createLlmFromEnv } from './llmFromEnv.js';
-import type { LLMProvider } from '../../core/llm.js';
+import { createEmbedderFromEnv } from './embedderFromEnv.js';
+import type { EmbedderProvider, LLMProvider } from '../../core/llm.js';
 import type { CapabilityProfile } from '../../core/types.js';
 
 export class LocalAdapter extends AdapterBase {
-  constructor(opts: { llm?: LLMProvider; envLlm?: boolean } = {}) {
+  constructor(opts: { llm?: LLMProvider; envLlm?: boolean; embedder?: EmbedderProvider; envEmbeddings?: boolean } = {}) {
     super();
     // LLM 来源：显式注入优先；缺省回退 .env / secrets.json（createLlmFromEnv）。
     // envLlm=false 时跳过 .env 回退（server 通道默认：宿主未注入则走启发式，避免大材料
     // 经 MCP 超时通道触发数十批同步 LLM 调用）；测试进程（VITEST）也不自动加载。
     const llm = opts.llm ??
       (opts.envLlm === false || process.env.VITEST ? undefined : createLlmFromEnv());
+    // embedder 同纪律（KAG-1 R24）：显式注入优先；env 回退需 envEmbeddings 显式开启
+    const embedder = opts.embedder ??
+      (opts.envEmbeddings !== true || process.env.VITEST ? undefined : createEmbedderFromEnv());
     const llmBatch = {
       concurrency: Number(process.env.NANGYING_LLM_CONCURRENCY ?? 4) || 4,
       budgetMs: Number(process.env.NANGYING_LLM_BUDGET_MS ?? 12 * 60_000) || 12 * 60_000,
     };
-    registerSharedSkills(this, llm ? { llm, llmBatch } : { llmBatch });
+    registerSharedSkills(this, { ...(llm ? { llm } : {}), llmBatch, ...(embedder ? { embedder } : {}) });
   }
 
   /** 本地自托管档案：纯逻辑能力 confirmed，外部引擎类 false（降级实现） */

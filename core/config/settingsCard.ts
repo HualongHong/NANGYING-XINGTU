@@ -112,7 +112,7 @@ export interface SettingsField {
 }
 
 export interface SettingsSection {
-  id: 'decoder' | 'transport' | 'academic' | 'datasets';
+  id: 'decoder' | 'transport' | 'academic' | 'embeddings' | 'datasets';
   title: string;
   visible: boolean;
   hiddenReason?: string;
@@ -221,6 +221,35 @@ export function renderSettingsCard(policy: PlatformSettingsPolicy): SettingsCard
         ],
       },
       {
+        id: 'embeddings',
+        title: '向量嵌入（KB 语义召回 · OpenAI 兼容端点）',
+        visible: true,
+        fields: [
+          {
+            name: 'embeddingsBaseUrl',
+            label: '嵌入端点 Base URL',
+            kind: 'url',
+            required: false,
+            policy: 'build/query_teaching_knowledge_base 向量召回增强用，可留空（宿主经 ctx 注入 embedder 或纯倒排降级，主流程不受影响）。',
+          },
+          {
+            name: 'embeddingsModel',
+            label: '嵌入模型',
+            kind: 'string',
+            required: false,
+            policy: '如 text-embedding-3-small / bge-m3；更换模型后需重建知识库（索引维度校验会拦截混用）。',
+          },
+          {
+            name: 'embeddingsApiKey',
+            label: '嵌入 API Key',
+            kind: 'secret',
+            required: false,
+            secret: true,
+            policy: `云端端点需要；本地端点（如 ollama）可留空。${SECRET_STORAGE_NOTE}`,
+          },
+        ],
+      },
+      {
         id: 'datasets',
         title: '数据集探查（OpenDataLab / OpenXLab）',
         visible: true,
@@ -264,6 +293,11 @@ export interface ApplySettings {
   /** OpenDataLab/OpenXLab AK/SK（成对使用；命名密钥 odlabAccessKeyId/odlabSecretAccessKey） */
   odlabAccessKeyId?: string;
   odlabSecretAccessKey?: string;
+  /** 向量嵌入端点（KAG-1 R24；OpenAI 兼容，merge 存 settings extra.embeddings；''=清除） */
+  embeddingsBaseUrl?: string;
+  embeddingsModel?: string;
+  /** 嵌入 API Key（命名密钥 embeddingsApiKey；本地端点可留空；''=清除） */
+  embeddingsApiKey?: string;
 }
 
 export type ValidatedSettings = ApplySettings;
@@ -321,6 +355,28 @@ export function validateApplySettings(
     if (typeof s.odlabSecretAccessKey !== 'string') return { error: 'odlabSecretAccessKey 须为字符串' };
     out.odlabSecretAccessKey = s.odlabSecretAccessKey;
   }
+  if (s.embeddingsBaseUrl !== undefined) {
+    if (typeof s.embeddingsBaseUrl !== 'string') return { error: 'embeddingsBaseUrl 须为字符串' };
+    if (s.embeddingsBaseUrl.trim() !== '') {
+      try {
+        const u = new URL(s.embeddingsBaseUrl.trim());
+        if (u.protocol !== 'http:' && u.protocol !== 'https:') throw new Error('bad protocol');
+      } catch {
+        return { error: `embeddingsBaseUrl 须为 http(s) URL 或空串（清除）：${s.embeddingsBaseUrl}` };
+      }
+      out.embeddingsBaseUrl = s.embeddingsBaseUrl.trim();
+    } else {
+      out.embeddingsBaseUrl = '';
+    }
+  }
+  if (s.embeddingsModel !== undefined) {
+    if (typeof s.embeddingsModel !== 'string') return { error: 'embeddingsModel 须为字符串' };
+    out.embeddingsModel = s.embeddingsModel.trim(); // ''=清除
+  }
+  if (s.embeddingsApiKey !== undefined) {
+    if (typeof s.embeddingsApiKey !== 'string') return { error: 'embeddingsApiKey 须为字符串' };
+    out.embeddingsApiKey = s.embeddingsApiKey; // ''=清除
+  }
   if (s.port !== undefined) {
     if (policy.transport !== 'http-capable') {
       return { error: `平台 ${policy.platform} 经 MCP stdio 接入，无需端口（独立 HTTP 模式请用 platform="local"）` };
@@ -332,15 +388,18 @@ export function validateApplySettings(
     out.port = n;
   }
   if (Object.keys(out).length === 0) {
-    return { error: 'settings 为空：至少提供 provider/model/endpoint/apiKey/sciverseApiKey/odlabAccessKeyId/odlabSecretAccessKey/port 之一' };
+    return { error: 'settings 为空：至少提供 provider/model/endpoint/apiKey/sciverseApiKey/odlabAccessKeyId/odlabSecretAccessKey/embeddingsBaseUrl/embeddingsModel/embeddingsApiKey/port 之一' };
   }
   if (
     out.provider === undefined &&
     out.sciverseApiKey === undefined &&
     out.odlabAccessKeyId === undefined &&
-    out.odlabSecretAccessKey === undefined
+    out.odlabSecretAccessKey === undefined &&
+    out.embeddingsBaseUrl === undefined &&
+    out.embeddingsModel === undefined &&
+    out.embeddingsApiKey === undefined
   ) {
-    return { error: 'provider 必填（或仅设置平台服务密钥：sciverseApiKey / odlabAccessKeyId / odlabSecretAccessKey，至少其一）' };
+    return { error: 'provider 必填（或仅设置平台服务项：sciverseApiKey / odlabAccessKeyId / odlabSecretAccessKey / embeddingsBaseUrl / embeddingsModel / embeddingsApiKey，至少其一）' };
   }
   return { ok: true, value: out };
 }

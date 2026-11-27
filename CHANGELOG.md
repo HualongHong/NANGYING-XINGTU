@@ -4,6 +4,19 @@
 
 ## [Unreleased]（1.9.0 预备 · KAG-1）
 
+R24 迭代（KAG-1 第二轮）：向量召回增强——`vectorRetrieval` 能力位终于落地消费。`SkillContext.embedder` 宿主注入位 + 纯 TS 余弦向量索引（增量缓存）+ build/query 执行器融合 + settings_card 向量端点（extra.embeddings 与 extra.llm 同纪律）。测试 638 → 654。
+
+### Added
+
+- **`SkillContext.embedder` 注入位**（`EmbedderProvider`：embed/dim/model）：宿主显式注入优先；`createEmbedderFromEnv` env 回退（.env `NANGYING_EMBEDDINGS_*` → settings `extra.embeddings` → secrets 命名密钥 `embeddingsApiKey`，OpenAI 兼容 /embeddings 端点归一，key 可选支持本地端点，错误响应脱敏）；MCP/HTTP server 通道 `NANGYING_MCP_EMBEDDINGS=1` opt-in（与 NANGYING_MCP_LLM 同纪律，VITEST 不自动加载）。
+- **`core/kb/kbVectorIndex.ts`**：纯 TS 余弦索引（零外部依赖）——批量嵌入、维度一致性护栏（防混模型）、**增量缓存**（同 evidenceId+文本哈希+同模型复用旧向量，大语料重建省时）、确定性序列化（条目按 id 排序）；`queryVectorIndex` 正余弦 top 召回，维度不符抛错含重建提示。
+- **执行器融合**：build 在 embedder 在场时构建向量索引并诚实报告（复用 N、新嵌入 M），失败降级纯倒排不阻断；query 自动向量召回并入融合（scoreParts.vector 可见），embedder 缺席/失败均如实标注。
+- **settings_card 向量端点**：新增 embeddings 区块三字段（embeddingsBaseUrl/embeddingsModel/embeddingsApiKey），apply merge 写入 `extra.embeddings`（解码器/LLM/端口配置原样保留，测试锁定 extra.llm 幸存），status 脱敏回显；卡片/校验/空值清除全链路。
+
+### Fixed
+
+- **kbLinks 索引直映射越界**（R24 测试揪出的 R23 真 bug）：单材料 EntitySource.paragraphIndexes 超出材料实际段落数时（融合图谱出处含其他材料索引），conceptToEvidence 会引用不存在的证据 id 致 KB 校验违规——现仅收真实存在的证据 id。
+
 R23 迭代（KAG-1 第一轮）：教学知识库——SPEC（dev-docs/SPEC-kb-rag-kag.md，评审三裁定：KAG-lite + 演进式 SPG 对标）落地第一刀。新增 2 个共享技能（38→40）：`build_teaching_knowledge_base`（材料+图谱 → 持久化 KB）与 `query_teaching_knowledge_base`（KAG 式混合检索证据包）。测试 605 → 638。
 
 ### Added

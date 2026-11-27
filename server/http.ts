@@ -88,7 +88,7 @@ if (isMain) {
   const { readConfig } = await import('../adapters/core/configStore.js');
   const storedPort = readConfig()?.extra?.port;
   const port = Number(process.env.PORT ?? storedPort ?? 7379);
-  void startHttpServer(new LocalAdapter({ envLlm: process.env.NANGYING_MCP_LLM === '1' }), port).then((s) => {
+  void startHttpServer(new LocalAdapter({ envLlm: process.env.NANGYING_MCP_LLM === '1', envEmbeddings: process.env.NANGYING_MCP_EMBEDDINGS === '1' }), port).then((s) => {
     const addr = s.address();
     console.log(`nangying-starmap HTTP JSON-RPC 已启动：http://127.0.0.1:${typeof addr === 'object' && addr ? addr.port : port}/rpc`);
   });

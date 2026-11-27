@@ -220,7 +220,7 @@ export function startMcpServer(adapter: AdapterBase): void {
 
 /** server 通道适配器：宿主不注入时默认走启发式（env NANGYING_MCP_LLM=1 才回退 .env LLM） */
 export function createMcpAdapter() {
-  return new LocalAdapter({ envLlm: process.env.NANGYING_MCP_LLM === '1' });
+  return new LocalAdapter({ envLlm: process.env.NANGYING_MCP_LLM === '1', envEmbeddings: process.env.NANGYING_MCP_EMBEDDINGS === '1' });
 }
 
 // 直接运行入口：node dist/server/mcp.js

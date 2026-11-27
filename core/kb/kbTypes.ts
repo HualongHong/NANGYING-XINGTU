@@ -81,8 +81,14 @@ export interface KbAdjacency {
 export interface KbIndexes {
   inverted: KbInvertedIndex;
   adjacency: KbAdjacency;
-  /** 向量索引（R24；embedder 缺席为 null） */
-  vector: { dim: number; count: number; entries: Array<[string, number[]]> } | null;
+  /** 向量索引（R24；embedder 缺席为 null）。textHashes 供增量重建缓存（同文本同模型复用向量） */
+  vector: {
+    dim: number;
+    count: number;
+    model?: string;
+    entries: Array<[string, number[]]>;
+    textHashes?: Record<string, string>;
+  } | null;
 }
 
 export interface KbStats {

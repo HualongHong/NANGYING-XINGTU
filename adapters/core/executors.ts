@@ -75,6 +75,7 @@ import { composeTeachingArtifacts } from '../../core/course/composeTeachingArtif
 import { auditTeachingPackage } from '../../core/qa/auditTeachingPackage.js';
 import { buildTeachingKnowledgeBase, validateTeachingKnowledgeBase, type BuildTeachingKnowledgeBaseInput } from '../../core/kb/buildTeachingKnowledgeBase.js';
 import { kbRetrieve } from '../../core/kb/kbRetrieve.js';
+import { buildVectorIndex, queryVectorIndex } from '../../core/kb/kbVectorIndex.js';
 import type { TeachingKnowledgeBase } from '../../core/kb/kbTypes.js';
 import type { AdapterBase } from './adapter.base.js';
 import registry from '../../manifests/skills.registry.json' with { type: 'json' };
@@ -1323,6 +1324,16 @@ const rawExecutors: Record<
           sciverse: sciverseKey
             ? { configured: true, fingerprint: secretFingerprint(sciverseKey) }
             : { configured: false },
+          embeddings: (() => {
+            let emb: Record<string, string> = {};
+            try { emb = JSON.parse(config?.extra?.embeddings ?? '{}') as Record<string, string>; } catch { emb = {}; }
+            const key = configStore.readApiKey('embeddingsApiKey');
+            return {
+              baseUrl: emb.baseUrl ?? '（未配置）',
+              model: emb.model ?? '（未配置）',
+              apiKey: key ? { configured: true, fingerprint: secretFingerprint(key) } : { configured: false },
+            };
+          })(),
           odlab: (() => {
             const ak = configStore.readApiKey('odlabAccessKeyId');
             const sk = configStore.readApiKey('odlabSecretAccessKey');
@@ -1404,6 +1415,32 @@ const rawExecutors: Record<
         changes.push('OpenXLab Secret Access Key 已写入命名密钥 odlabSecretAccessKey（0600，不回显）');
       }
     }
+    let embeddings: { baseUrl?: string; model?: string; key?: { stored: boolean; cleared?: boolean; fingerprint?: string } } | undefined;
+    if (s.embeddingsBaseUrl !== undefined || s.embeddingsModel !== undefined) {
+      const prevCfg = configStore.readConfig() ?? { provider: '' };
+      let emb: Record<string, string> = {};
+      try { emb = JSON.parse(prevCfg.extra?.embeddings ?? '{}') as Record<string, string>; } catch { emb = {}; }
+      if (s.embeddingsBaseUrl !== undefined) {
+        if (s.embeddingsBaseUrl === '') delete emb.baseUrl; else emb.baseUrl = s.embeddingsBaseUrl;
+      }
+      if (s.embeddingsModel !== undefined) {
+        if (s.embeddingsModel === '') delete emb.model; else emb.model = s.embeddingsModel;
+      }
+      configStore.writeConfig({ ...prevCfg, extra: { ...prevCfg.extra, embeddings: JSON.stringify(emb) } });
+      embeddings = { baseUrl: emb.baseUrl, model: emb.model };
+      changes.push('向量嵌入端点已 merge 写入 settings.json extra.embeddings（解码器/LLM/端口配置原样保留）');
+    }
+    if (s.embeddingsApiKey !== undefined) {
+      if (s.embeddingsApiKey === '') {
+        configStore.clearApiKey('embeddingsApiKey');
+        embeddings = { ...embeddings, key: { stored: false, cleared: true } };
+        changes.push('向量嵌入 API Key 已清除');
+      } else {
+        configStore.writeApiKey(s.embeddingsApiKey, 'embeddingsApiKey');
+        embeddings = { ...embeddings, key: { stored: true, fingerprint: secretFingerprint(s.embeddingsApiKey) } };
+        changes.push('向量嵌入 API Key 已写入命名密钥 embeddingsApiKey（0600，不回显）');
+      }
+    }
     let odlab: {
       ak: { stored: boolean; fingerprint?: string };
       sk: { stored: boolean; fingerprint?: string };
@@ -1424,6 +1461,7 @@ const rawExecutors: Record<
         applied: changes,
         secret,
         sciverse,
+        embeddings,
         odlab,
         port: s.port ?? (prev?.extra?.port !== undefined ? Number(prev.extra.port) : DEFAULT_HTTP_PORT),
         paths: { settings: configStore.settingsPath(), secrets: configStore.secretsPath() },
@@ -1724,22 +1762,47 @@ const rawExecutors: Record<
     };
   },
   // 教学知识库构建（KAG-1 R23）：材料+图谱 → KB artifact；persist 默认落盘 configDir()/kb/<kbId>/kb.json
-  build_teaching_knowledge_base: async (inputs) => {
+  build_teaching_knowledge_base: async (inputs, ctx) => {
     const result = buildTeachingKnowledgeBase(inputs as unknown as BuildTeachingKnowledgeBaseInput);
     const persist = (inputs as { persist?: boolean }).persist !== false;
+    const notes: string[] = result.degradationNote ? [result.degradationNote] : [];
+    let level = result.level;
     let persisted: string | undefined;
-    if (persist && result.data) {
+    if (result.data) {
       persisted = join(configDir(), 'kb', result.data.kbId.replace(/[\/:*?"<>|\s]/g, '_'), 'kb.json');
-      mkdirSync(dirname(persisted), { recursive: true });
-      writeFileSync(persisted, JSON.stringify(result.data), 'utf8');
+      // R24：embedder 在场构建向量索引（增量缓存：同 kbId 旧索引同文本同模型复用）
+      if (ctx.embedder) {
+        let previous = null;
+        if (existsSync(persisted)) {
+          try {
+            previous = (JSON.parse(readFileSync(persisted, 'utf8')) as TeachingKnowledgeBase).indexes?.vector ?? null;
+          } catch { /* 旧文件损坏不阻断重建 */ }
+        }
+        try {
+          const built = await buildVectorIndex(result.data.evidence, ctx.embedder, { previous });
+          result.data.indexes.vector = built.index;
+          notes.push(`向量索引 ${built.index.count} 条（复用 ${built.reused}、新嵌入 ${built.embedded}）`);
+        } catch (e) {
+          level = 'degraded';
+          notes.push(`向量索引构建失败，已降级纯倒排：${e instanceof Error ? e.message : String(e)}`);
+        }
+      }
+      if (persist) {
+        mkdirSync(dirname(persisted), { recursive: true });
+        writeFileSync(persisted, JSON.stringify(result.data), 'utf8');
+      } else {
+        persisted = undefined;
+      }
     }
     return {
       ...result,
+      level,
+      degradationNote: notes.join('；'),
       data: { knowledgeBase: result.data, ...(persisted ? { persisted } : {}) },
     };
   },
   // 教学知识库检索（KAG-1 R23）：kb 内存直传或 kbId 落盘加载 → 五段管线证据包
-  query_teaching_knowledge_base: async (inputs) => {
+  query_teaching_knowledge_base: async (inputs, ctx) => {
     const fail = (note: string, example: string) => ({
       skillId: 'query_teaching_knowledge_base' as const,
       level: 'unavailable' as const,
@@ -1769,13 +1832,27 @@ const rawExecutors: Record<
       return fail('缺少知识库：请传 kb（build_teaching_knowledge_base 输出）或 kbId（已落盘标识）二选一', '{ "kb": "$build_teaching_knowledge_base.knowledgeBase", "query": "…" }');
     }
     const violations = validateTeachingKnowledgeBase(kb);
-    const pack = kbRetrieve(kb, query, { topK, budgetTokens, expand });
+    // R24：向量召回（kb 含向量索引且 embedder 在场；失败降级纯倒排并如实标注）
+    let vectorScores: Map<string, number> | undefined;
+    const vecNotes: string[] = [];
+    if (kb.indexes.vector && ctx.embedder) {
+      try {
+        const [qvec] = await ctx.embedder.embed([query]);
+        vectorScores = queryVectorIndex(kb.indexes.vector, qvec);
+      } catch (e) {
+        vecNotes.push(`向量召回失败，已降级纯倒排：${e instanceof Error ? e.message : String(e)}`);
+      }
+    } else if (kb.indexes.vector && !ctx.embedder) {
+      vecNotes.push('KB 含向量索引但宿主未注入 embedder，本次纯倒排召回');
+    }
+    const pack = kbRetrieve(kb, query, { topK, budgetTokens, expand, vectorScores });
     return {
       skillId: 'query_teaching_knowledge_base' as const,
       level: violations.length > 0 ? ('degraded' as const) : ('full' as const),
       degradationNote: [
         violations.length > 0 ? `KB schema 校验违规 ${violations.length} 条：${violations.slice(0, 3).join('；')}` : '',
         loadedFrom ? `已从落盘加载：${loadedFrom}` : '',
+        ...vecNotes,
       ].filter(Boolean).join('；'),
       data: { evidencePack: pack },
     };
@@ -1963,12 +2040,14 @@ export function registerSharedSkills(
   adapter: AdapterBase,
   opts: {
     llm?: LLMProvider;
+    embedder?: SkillContext['embedder'];
     decoder?: SkillContext['decoder'];
     llmBatch?: Omit<import('../../core/llm.js').LlmBatchConfig, 'onProgress'>;
   } = {},
 ): void {
   const baseCtx: SkillContext = {};
   if (opts.llm) baseCtx.llm = opts.llm;
+  if (opts.embedder) baseCtx.embedder = opts.embedder;
   if (opts.decoder) baseCtx.decoder = opts.decoder;
   if (opts.llmBatch) baseCtx.llmBatch = opts.llmBatch;
   // 宿主平台标识注入：settings_card 依此匹配平台政策（端口显隐/LLM 注入说明）

@@ -132,6 +132,10 @@ LLM（讲稿润色/词族派生等）与解码器分位存放：`node scripts/in
 
 科教融合备课（可选，五技能链，纯本地零密钥）：给定课程章节 + 会议摘要集产四件套（课件 PDF / 阅读材料 A4 PDF / 课后自测离线 HTML / 教案 PDF）——`gather_teaching_requirements`（开工必问 Q1–Q8 + 纠偏登记表，stopWork 时逐项问不预设）→ `parse_abstract_collection`（分页文本/pdftotext 直出：结构化记录 + 页号偏移 Δ 探测 + 抽取缺陷旗标）→ `select_research_evidence`（词族加权评分 + 相对分位阈值 + 覆盖优先 + 复核队列，LLM 在场自动派生词族）→ `compose_teaching_artifacts`（编号单一来源 + 来源字段"未提供"口径 + 学生/教师信息边界校验）→ `audit_teaching_package`（零外链/禁用词/占位符/编号一致/来源口径/奇偶配对纯检查 + 编译写盘 delegated 指引 + 红线触发清单）。详见 [RECIPES.md 配方 5](RECIPES.md)。
 
+教学知识库（可选，KAG-1，纯本地零密钥）：多材料课程建一次库、六环节统一取材——`build_teaching_knowledge_base`（材料+图谱 → 概念分层/段落级证据/关联/索引 + `coverageGaps` 缺口清单 + `acquisitionPlan` 采集清单，默认落盘 `configDir()/kb/<kbId>/`，大语料 `async: true`）→ `query_teaching_knowledge_base`（倒排∪图谱扩展混合检索出证据包，得分构成与出处逐条可见；`mode:'reason'` 走 KAG-lite 逻辑式推理承接多跳/聚合/比较问题，需宿主 LLM，降级自动回落 retrieve）→ 教案/讲稿/测试/辅导/课件经可选 `kbRefs` 消费（缺省行为不变）。开放采集回路：`coverageGaps` → 三通道采集（SciVerse/摘要集/公开材料）→ build `base` 合并 + `externalConcepts` + `llmLinkProposals`（mustReview）→ `confirmReview` 人工确认。详见 [RECIPES.md 配方 6](RECIPES.md)。
+
+向量召回增强（可选）：settings_card 的 embeddings 区块配置 OpenAI 兼容端点（`embeddingsBaseUrl`/`embeddingsModel`/`embeddingsApiKey`，存 `extra.embeddings` + 命名密钥，与 extra.llm 同纪律），或 `.env` 的 `NANGYING_EMBEDDINGS_BASE_URL`/`NANGYING_EMBEDDINGS_MODEL`/`NANGYING_EMBEDDINGS_API_KEY`；宿主亦可经 `ctx.embedder` 直接注入。配置后 build 自动构建向量索引（增量缓存：同文本同模型复用）、query 自动融合向量召回；缺席/失败自动纯倒排降级，主流程不受影响。MCP/HTTP server 通道需 `NANGYING_MCP_EMBEDDINGS=1` opt-in。**换嵌入模型须重建知识库**（向量维度校验拦截混用）。
+
 **密钥安全策略**（key 生命周期）：
 - 存放：配置目录 `~/.nangying-starmap/`（可用 env `NANGYING_CONFIG_DIR` 覆盖）；`settings.json` 只存非敏感配置（644），`secrets.json` 存命名密钥映射 `{ "apiKey": …, "sciverseApiKey": …, "odlabAccessKeyId": …, "odlabSecretAccessKey": … }`（600；缺省名 `apiKey` 与旧文件兼容；Windows 下 chmod 尽力而为，建议再以文件系统 ACL 收紧目录访问）；
 - 写入：`writeConfig` 入参校验拒绝任何字段名含 key/token/secret/password 的配置；向导与参数模式均不回显 key；

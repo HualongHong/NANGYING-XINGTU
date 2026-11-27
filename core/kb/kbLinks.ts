@@ -127,6 +127,25 @@ export function backfillEvidenceConceptIds(evidence: KbEvidence[], conceptToEvid
   }
 }
 
+/** 段落侧章节继承（R26 eval 驱动）：无任何直接概念的 corpus 证据，继承其所属章节出现的概念
+ *  ——列表引导句（"关键要素："）等结构性短段由此归入章节主题。
+ *  只回填 evidence.conceptIds（段落归属语义），**不写 conceptToEvidence**（概念→证据保持直接
+ *  挂接口径，coverageGaps/GAP 检测不受稀释）；external 证据不继承（挂接归 §4.5 采集回路）。 */
+export function inheritSectionConcepts(concepts: KbConcept[], evidence: KbEvidence[]): void {
+  const bySection = new Map<number, string[]>();
+  for (const c of concepts) {
+    for (const s of c.source.sectionOrder) {
+      if (s < 0) continue;
+      (bySection.get(s) ?? bySection.set(s, []).get(s)!).push(c.id);
+    }
+  }
+  for (const ev of evidence) {
+    if (ev.origin !== 'corpus' || ev.conceptIds.length > 0 || ev.sectionOrder < 0) continue;
+    const inherited = bySection.get(ev.sectionOrder) ?? [];
+    if (inherited.length > 0) ev.conceptIds = [...new Set([...ev.conceptIds, ...inherited])].sort();
+  }
+}
+
 export function buildLinks(
   concepts: KbConcept[],
   evidence: KbEvidence[],
@@ -136,6 +155,7 @@ export function buildLinks(
 ): KbLinks {
   const conceptToEvidence = linkConceptsToEvidence(concepts, evidence, graph, singleMaterialId);
   backfillEvidenceConceptIds(evidence, conceptToEvidence);
+  inheritSectionConcepts(concepts, evidence);
   return {
     conceptToEvidence,
     evidenceToEvidence: linkEvidenceToEvidence(evidence, conceptToEvidence),

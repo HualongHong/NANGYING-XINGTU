@@ -2,7 +2,19 @@
 
 本插件遵循"技能即契约"的迭代纪律，所有行为变更同步契约文档与 DEV_LOG。格式参照 keepachangelog 简版。
 
-## [Unreleased]（1.9.0 预备 · KAG-1）
+## [1.9.0] - 2026-11-27
+
+R26 迭代（KAG-1 收官）：eval 度量硬门槛落地 + 挂接语义修正 + 文档 + 发版。测试 691 → 695。
+
+### Added
+
+- **度量评测（tests/kbEval，SPEC §7 门槛 CI 化）**：CC0 examples 黄金集 32 对 **recall@5=1.000**（≥0.8 门槛）；**corpus 挂接率 94.1%**（≥90%）、itemToConcept 100%（≥80%）；external 挂接与分层占比随报告输出（G5 观测位）。
+- **真机 eval 脚本**（`scripts/eval-kb-reason.mjs`，env-gated 报告型）：真实 LLM planner 多跳题规划/校验/执行三段成功率 + embedder 增量 recall 对照；无配置如实跳过。本机实测：DeepSeek planner 4/4 规划成功、4/4 校验通过、4/4 执行成功。
+- **USAGE 文档**：教学知识库章（建库/检索/reason 模式/采集回路/配方 6 指针）+ 向量召回增强配置（settings_card embeddings 区块 / .env / ctx.embedder 三通道，换模型须重建警示）。
+
+### Fixed
+
+- **挂接语义修正（eval 驱动的分层口径，SPEC 评审四）**：corpus 结构性短段（"关键要素："等列表引导句）无概念归属（实测挂接率仅 70.6%）——新增**段落侧章节继承**（无直接概念的 corpus 证据继承所属章节概念，只回填 evidence.conceptIds，不稀释 conceptToEvidence 的 GAP 检测语义）；external 证据挂接构建期如实报告不设门槛（标签匹配对开放材料结构性无效，实测 0/7，归 §4.5 采集回路词族/LLM/人工）。
 
 R25b 迭代（KAG-1 第四轮）：KAG-lite 逻辑式推理层（SPEC §4.6）——LLM 只规划、确定性校验、确定性执行，承接多跳/聚合/比较/规划类开放问题。测试 670 → 691。
 

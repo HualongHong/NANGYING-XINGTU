@@ -4,6 +4,14 @@
 
 ## [Unreleased]（1.9.0 预备 · KAG-1）
 
+R25b 迭代（KAG-1 第四轮）：KAG-lite 逻辑式推理层（SPEC §4.6）——LLM 只规划、确定性校验、确定性执行，承接多跳/聚合/比较/规划类开放问题。测试 670 → 691。
+
+### Added
+
+- **`core/kb/kbReason/` 四件套**：`lfGrammar`（算子注册表 8 算子 FIND/FILTER/TRAVERSE/RETRIEVE/COUNT/COMPARE/SORT/GAP——扩容=加注册项，§4.7 演进通道；字段白名单由 kbSchema 数据驱动）+ `lfValidator`（未知算子/白名单外字段/超深 >3 跳/超 8 算子一律拒）+ `lfExecutor`（纯函数零 LLM，同 LF 同结果，执行轨迹逐步可审计，步数硬上限 64 防失控）+ `lfPlanner`（LLM 规划 temperature 0，算子手册由注册表自动生成 + kb 统计摘要 + few-shot）。
+- **query 技能 `mode:'reason'`**：输出 logicalForm + planCacheHit + 解析答案（证据带 citation/origin、概念带标签，可审计）+ trace；三段降级链——无 LLM/规划失败/校验拒绝均回落 retrieve 并如实标注（reason-fallback），不抛错；**计划缓存**（query+kbId+builtAt 命中，FIFO 200）。
+- **多跳 golden 集评测（16 题 ≥ SPEC 15 门槛）**：完美规划桩下 reason 命中率 100% 且 ≥ retrieve +15% 相对提升（SPEC §7 达标；评测锁定推理机械的结构能力优势，真实 LLM 规划质量归真机 eval 报告不进 CI 门槛）。
+
 R25 迭代（KAG-1 第三轮）：开放采集回路 + 六环节 kbRefs 集成 + 配方 6——SPEC G5 落地。测试 654 → 670。
 
 ### Added

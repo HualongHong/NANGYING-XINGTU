@@ -76,6 +76,9 @@ import { auditTeachingPackage } from '../../core/qa/auditTeachingPackage.js';
 import { buildTeachingKnowledgeBase, validateTeachingKnowledgeBase, type BuildTeachingKnowledgeBaseInput } from '../../core/kb/buildTeachingKnowledgeBase.js';
 import { kbRetrieve } from '../../core/kb/kbRetrieve.js';
 import { buildVectorIndex, queryVectorIndex } from '../../core/kb/kbVectorIndex.js';
+import { planLogicalForm } from '../../core/kb/kbReason/lfPlanner.js';
+import { validateLogicalForm } from '../../core/kb/kbReason/lfValidator.js';
+import { executeLogicalForm, type LfValue } from '../../core/kb/kbReason/lfExecutor.js';
 import type { TeachingKnowledgeBase } from '../../core/kb/kbTypes.js';
 import type { AdapterBase } from './adapter.base.js';
 import registry from '../../manifests/skills.registry.json' with { type: 'json' };
@@ -525,6 +528,10 @@ function exampleFor(specs: FieldSpec[]): string | undefined {
 }
 
 /** 支持 async: true 异步提交的技能（长任务不受宿主 toolCallTimeoutMs 限制） */
+/** KAG-lite 计划缓存（query+kb 版本命中；FIFO 上限防膨胀） */
+const LF_PLAN_CACHE = new Map<string, unknown>();
+const LF_PLAN_CACHE_MAX = 200;
+
 const ASYNC_CAPABLE = new Set([
   'parse_course_material',
   'extract_knowledge_graph',
@@ -1842,6 +1849,89 @@ const rawExecutors: Record<
       return fail('缺少知识库：请传 kb（build_teaching_knowledge_base 输出）或 kbId（已落盘标识）二选一', '{ "kb": "$build_teaching_knowledge_base.knowledgeBase", "query": "…" }');
     }
     const violations = validateTeachingKnowledgeBase(kb);
+    // R25b：mode:'reason' —— KAG-lite 逻辑式推理（LLM 规划 → 确定性校验 → 确定性执行）；
+    // 无 LLM / 规划失败 / 校验拒绝 → 回落 retrieve 并如实说明（不抛错）
+    const mode = (inputs as { mode?: string }).mode;
+    if (mode === 'reason') {
+      const reasonNotes: string[] = [];
+      let reasonData: Record<string, unknown> | null = null;
+      if (!ctx.llm) {
+        reasonNotes.push('reason 模式需宿主注入 LLM 规划器，本次降级为 retrieve');
+      } else {
+        const cacheKey = `${kb.kbId}|${kb.builtAt}|${query}`;
+        let rawPlan = LF_PLAN_CACHE.get(cacheKey);
+        let cacheHit = true;
+        if (rawPlan === undefined) {
+          cacheHit = false;
+          const planned = await planLogicalForm(kb, query, ctx.llm);
+          if (!planned.ok) {
+            reasonNotes.push(`${planned.error}，降级为 retrieve`);
+          } else {
+            rawPlan = planned.plan;
+          }
+        }
+        if (rawPlan !== undefined) {
+          const v = validateLogicalForm(rawPlan);
+          if (!v.ok) {
+            reasonNotes.push(`逻辑式校验拒绝（${v.errors.slice(0, 2).join('；')}），降级为 retrieve`);
+          } else {
+            try {
+              const exec = executeLogicalForm(kb, v.plan);
+              if (!cacheHit) {
+                if (LF_PLAN_CACHE.size >= LF_PLAN_CACHE_MAX) {
+                  LF_PLAN_CACHE.delete(LF_PLAN_CACHE.keys().next().value!);
+                }
+                LF_PLAN_CACHE.set(cacheKey, rawPlan);
+              }
+              // 答案实体解析（证据带文本/出处、概念带标签，可审计）
+              const resolveAnswer = (val: LfValue): unknown => {
+                if (val.type === 'evidence') {
+                  return {
+                    ...val,
+                    items: val.ids.slice(0, 10).map((id) => {
+                      const ev = kb.evidence.find((e) => e.id === id);
+                      return ev ? { evidenceId: id, text: ev.text, origin: ev.origin, citation: ev.citation } : { evidenceId: id };
+                    }),
+                  };
+                }
+                if (val.type === 'concepts') {
+                  return {
+                    ...val,
+                    items: val.ids.slice(0, 20).map((id) => {
+                      const c = kb.concepts.find((x) => x.id === id);
+                      return c ? { conceptId: id, label: c.label, origin: c.origin, confidence: c.confidence } : { conceptId: id };
+                    }),
+                  };
+                }
+                return val;
+              };
+              reasonData = {
+                mode: 'reason',
+                logicalForm: v.plan,
+                planCacheHit: cacheHit,
+                answer: resolveAnswer(exec.value),
+                trace: exec.trace,
+              };
+            } catch (e) {
+              reasonNotes.push(`逻辑式执行失败（${e instanceof Error ? e.message : String(e)}），降级为 retrieve`);
+            }
+          }
+        }
+      }
+      if (reasonData) {
+        return {
+          skillId: 'query_teaching_knowledge_base' as const,
+          level: violations.length > 0 ? ('degraded' as const) : ('full' as const),
+          degradationNote: [
+            violations.length > 0 ? `KB schema 校验违规 ${violations.length} 条` : '',
+            loadedFrom ? `已从落盘加载：${loadedFrom}` : '',
+          ].filter(Boolean).join('；'),
+          data: reasonData,
+        };
+      }
+      // 回落 retrieve：继续走下方 retrieve 管线，note 标注降级原因
+      (inputs as { __reasonFallback?: string }).__reasonFallback = reasonNotes.join('；');
+    }
     // R24：向量召回（kb 含向量索引且 embedder 在场；失败降级纯倒排并如实标注）
     let vectorScores: Map<string, number> | undefined;
     const vecNotes: string[] = [];
@@ -1860,11 +1950,12 @@ const rawExecutors: Record<
       skillId: 'query_teaching_knowledge_base' as const,
       level: violations.length > 0 ? ('degraded' as const) : ('full' as const),
       degradationNote: [
+        (inputs as { __reasonFallback?: string }).__reasonFallback ?? '',
         violations.length > 0 ? `KB schema 校验违规 ${violations.length} 条：${violations.slice(0, 3).join('；')}` : '',
         loadedFrom ? `已从落盘加载：${loadedFrom}` : '',
         ...vecNotes,
       ].filter(Boolean).join('；'),
-      data: { evidencePack: pack },
+      data: { evidencePack: pack, ...(mode === 'reason' ? { mode: 'reason-fallback' } : {}) },
     };
   },
   describe_capabilities: async (inputs) => {

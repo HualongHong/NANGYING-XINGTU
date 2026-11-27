@@ -16,6 +16,7 @@
 - `topK`（可选）：返回证据条数上限（默认 5）。
 - `budgetTokens`（可选）：证据包 token 预算（默认 2000；超出裁剪并如实报告条数）。
 - `expand`（可选，默认 true）：图谱扩展——命中概念的先修/相关邻域证据以 via:'graph' 带出。
+- `mode`（可选，R25b）：`'retrieve'`（默认）| `'reason'`——reason 走 KAG-lite 逻辑式推理（LLM 规划 → 确定性校验 → 确定性执行），承接多跳/聚合/比较/规划类问题；输出 logicalForm + 执行轨迹（可审计）+ 解析后的答案；无 LLM/规划失败/校验拒绝自动回落 retrieve 并如实标注。
 
 ## 输入声明
 
@@ -50,6 +51,10 @@ inputs:
     kind: boolean
     required: false
     hint: '图谱扩展（默认 true）：命中概念邻域证据以 via:graph 带出'
+  - name: mode
+    kind: string
+    required: false
+    hint: "'retrieve'（默认）| 'reason'（KAG-lite 逻辑式推理，需宿主 LLM；降级自动回落 retrieve）"''
 ```
 
 ## 输出

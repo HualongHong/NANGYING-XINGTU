@@ -2172,7 +2172,8 @@
         "kbId",
         "topK",
         "budgetTokens",
-        "expand"
+        "expand",
+        "mode"
       ],
       "required": [
         "query"
@@ -2216,6 +2217,12 @@
           "kind": "boolean",
           "required": false,
           "hint": "'图谱扩展（默认 true）：命中概念邻域证据以 via:graph 带出'"
+        },
+        {
+          "name": "mode",
+          "kind": "string",
+          "required": false,
+          "hint": "\"'retrieve'（默认）| 'reason'（KAG-lite 逻辑式推理，需宿主 LLM；降级自动回落 retrieve）\"''"
         }
       ],
       "outputs": [

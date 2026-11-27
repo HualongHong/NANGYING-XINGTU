@@ -333,3 +333,142 @@ describe('examples/ × 配方 3 链端到端演练（v1/v2 讲义 → 图谱 dif
 
 
 
+
+describe('examples/ × 配方 6 链端到端演练（知识库 → 六环节取材 → 开放采集回路）', () => {
+  const lectureFile = `${ROOT}examples/讲义-光合作用基础.md`;
+
+  async function buildKb() {
+    const parse = await adapter.invokeSkill('parse_course_material', { inputs: { materialFile: lectureFile } });
+    const graph = await adapter.invokeSkill('extract_knowledge_graph', { inputs: { structuredContent: parse.data } });
+    const built = await adapter.invokeSkill('build_teaching_knowledge_base', {
+      inputs: {
+        materials: [{ materialId: 'lecture-photosyn', parse: parse.data }],
+        graph: graph.data,
+        persist: false,
+      },
+    });
+    expect(built.level).toBe('full');
+    return {
+      parse: parse.data as { paragraphs: Array<{ index: number; text: string; sectionOrder: number }> },
+      graph: graph.data,
+      kb: (built.data as { knowledgeBase: { kbId: string; schemaId: string; stats: { evidence: number; externalRatio: number; coverageGaps: string[] } } }).knowledgeBase,
+    };
+  }
+
+  it('① 建库：讲义 → KB（证据/关联/索引/缺口清单齐备）', async () => {
+    const { kb } = await buildKb();
+    expect(kb.stats.evidence).toBeGreaterThan(5);
+    expect(kb.stats.externalRatio).toBe(0);
+    expect(kb.schemaId).toBe('nangying-starmap/kb');
+  });
+
+  it('② 检索：证据包带得分构成与出处；六环节 kbRefs 冒烟全过', async () => {
+    const { graph, kb } = await buildKb();
+    const q = await adapter.invokeSkill('query_teaching_knowledge_base', {
+      inputs: { kb, query: '光反应 类囊体', topK: 5 },
+    });
+    expect(q.level).toBe('full');
+    const pack = (q.data as { evidencePack: { items: Array<{ evidenceId: string; scoreParts: Record<string, number> }>; concepts: unknown[] } }).evidencePack;
+    expect(pack.items.length).toBeGreaterThan(0);
+    expect(pack.items[0].evidenceId).toMatch(/^ev-lecture-photosyn-p\d+$/);
+    expect(Object.keys(pack.items[0].scoreParts)).toEqual(['inverted', 'vector', 'graph', 'confidence']);
+
+    // 教案
+    const design = await adapter.invokeSkill('design_course_structure', {
+      inputs: { graph, objectives: { audience: '本科一年级' }, kbRefs: pack },
+    });
+    const lessons = (design.data as { teachingStructure: Array<{ lessons: Array<{ evidenceRefs?: string[] }> }> })
+      .teachingStructure.flatMap((m) => m.lessons);
+    expect(lessons.some((l) => (l.evidenceRefs ?? []).length > 0)).toBe(true);
+
+    // 讲稿
+    const script = await adapter.invokeSkill('generate_teaching_script', {
+      inputs: { structure: design.data, kbRefs: pack },
+    });
+    expect((script.data as { kbRefs?: { evidenceIds: string[] } }).kbRefs!.evidenceIds.length).toBe(pack.items.length);
+
+    // 测试/出卷
+    const assess = await adapter.invokeSkill('generate_assessment', {
+      inputs: { graph, count: 5, kbRefs: pack },
+    });
+    const items = (assess.data as { assessment: Array<{ evidenceIds?: string[] }> }).assessment;
+    expect(items.some((i) => (i.evidenceIds ?? []).length > 0)).toBe(true);
+
+    // 辅导
+    const qa = await adapter.invokeSkill('build_qa_knowledge_base', {
+      inputs: { knowledgeGraph: graph, paragraphs: (await buildKb()).parse.paragraphs },
+    });
+    const rt = await adapter.invokeSkill('realtime_qa_stream', {
+      inputs: { question: '光反应在哪里进行？', qaKnowledgeBase: qa.data, kbRefs: pack },
+    });
+    expect(((rt.data as { evidence?: unknown[] }).evidence ?? []).length).toBeGreaterThan(0);
+
+    // 课件
+    const exp = await adapter.invokeSkill('export_course_package', {
+      inputs: { script: script.data, knowledgeBase: kb, options: { formats: ['markdown'] } },
+    });
+    const files = (exp.data as { package: { files: Array<{ path: string }> } }).package.files;
+    expect(files.some((f) => f.path === 'kb/kb.json')).toBe(true);
+  });
+
+  it('③ 开放采集回路：外部概念缺口 → 摘要集导入 merge → 缺口闭合 + 零虚构引用', async () => {
+    const { kb } = await buildKb();
+    const parsed = await adapter.invokeSkill('parse_abstract_collection', {
+      inputs: { content: abstractContent, entryPattern: '^\\d{4}\\s', declaredTotal: 7 },
+    });
+    const records = (parsed.data as { records: Array<{ id: string; title: string; body?: string }> }).records;
+    expect(records.length).toBe(7);
+    const gapLabel = records[0].title; // 以首篇题名为外部概念（其证据文本必含之，确定性闭合）
+
+    // 第一步：只加外部概念 → 缺口出现 + 采集清单给出检索词
+    const withGap = await adapter.invokeSkill('build_teaching_knowledge_base', {
+      inputs: { materials: [], graph: (await buildKb()).graph, base: kb, externalConcepts: [{ label: gapLabel, origin: 'external' }], persist: false },
+    });
+    const kbGap = (withGap.data as { knowledgeBase: { stats: { coverageGaps: string[] }; concepts: Array<{ id: string; label: string; origin: string }> } }).knowledgeBase;
+    const gapConcept = kbGap.concepts.find((c) => c.label === gapLabel)!;
+    expect(gapConcept.origin).toBe('external');
+    expect(kbGap.stats.coverageGaps).toContain(gapConcept.id);
+    const plan = (withGap.data as { acquisitionPlan: Array<{ conceptId: string; searchTerms: string[] }> }).acquisitionPlan;
+    expect(plan.find((p) => p.conceptId === gapConcept.id)!.searchTerms).toContain(gapLabel);
+
+    // 第二步：摘要集作 abstractCollection 证据源 merge → 缺口闭合
+    const abstractMaterial = {
+      materialId: 'abstracts-2026',
+      parse: {
+        structuredSections: [],
+        paragraphs: records.map((r, i) => ({ index: i, text: `${r.title}。${r.body ?? ''}`, sectionOrder: 0 })),
+        tables: [],
+        knowledgePointCandidates: [],
+        llmFilterReport: { enabled: false },
+      },
+      origin: 'abstractCollection',
+      citation: { venue: '青年生态学论坛', year: 2026 },
+    };
+    const merged = await adapter.invokeSkill('build_teaching_knowledge_base', {
+      inputs: { materials: [abstractMaterial], graph: (await buildKb()).graph, base: kbGap, persist: false },
+    });
+    const kb2 = (merged.data as {
+      knowledgeBase: {
+        stats: { coverageGaps: string[]; externalRatio: number; evidence: number };
+        evidence: Array<{ id: string; origin: string; citation: Record<string, unknown> }>;
+      };
+    }).knowledgeBase;
+    expect(kb2.stats.coverageGaps).not.toContain(gapConcept.id); // 缺口闭合
+    expect(kb2.stats.externalRatio).toBeGreaterThan(0);
+    expect(kb2.stats.evidence).toBe(kb.stats.evidence + 7);
+
+    // 分层正确率 100%：corpus/external 不混
+    const corpusCount = kb2.evidence.filter((e) => e.origin === 'corpus').length;
+    const externalCount = kb2.evidence.filter((e) => e.origin === 'abstractCollection').length;
+    expect(corpusCount).toBe(kb.stats.evidence);
+    expect(externalCount).toBe(7);
+
+    // 零虚构引用：external 证据 citation 只含真实提供字段（venue/year），无编造 doi/url
+    for (const ev of kb2.evidence.filter((e) => e.origin !== 'corpus')) {
+      expect(Object.keys(ev.citation).sort()).toEqual(['venue', 'year']);
+      expect(ev.citation.venue).toBe('青年生态学论坛');
+      expect(ev.citation.doi).toBeUndefined();
+      expect(ev.citation.url).toBeUndefined();
+    }
+  });
+});

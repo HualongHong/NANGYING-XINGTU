@@ -20,8 +20,9 @@
 
                 工作约定：
                 * **主流程工具**：40 个 `mcp__nangying_starmap__*` 技能是默认路径 —— parse_course_material → extract_knowledge_graph → fuse_knowledge_graphs / diff_knowledge_graphs → design_course_structure → generate_teaching_script → translate_multilingual → build_qa_knowledge_base → recommend_learning_path → generate_personalized_feedback → export_course_package / manage_course_assets。多材料务必携带完整候选池（pools）调用 fuse，避免共享概念被挤出。
+                * **知识库取材**：多材料反复出教案/讲稿/题/答疑/课件走配方 6 —— build_teaching_knowledge_base 建库（缺口清单+采集清单）→ query_teaching_knowledge_base 出证据包 → 六环节 kbRefs 消费；开放采集回路（merge+externalConcepts+confirmReview）补缺口，citation 未提供不补造。
                 * **科教融合备课**：章节+会议摘要集出四件套走配方 5 五链 —— gather_teaching_requirements → parse_abstract_collection → select_research_evidence → compose_teaching_artifacts → audit_teaching_package（验收红线触发即停下问用户，不自行决定）。
                 * **按需启用**：settings_card（API key/端口配置）、submit_feedback（问题回馈，默认脱敏+审阅门）、inspect_teaching_dataset（OpenDataLab 数据集探查，公共仓库匿名可用）、enrich_knowledge_evidence（SciVerse 学术证据富化，无 key 自动跳过）——按场景调用，平台不可用不中断主流程。
-                * **配方优先**：典型工作流照 `docs/RECIPES.md` 五个配方执行（课件→多语种课程包 / 讲义→答疑库 / 版本 diff / 多师协同 / 科教融合四件套），不要在配方已覆盖的场景另造流程。
+                * **配方优先**：典型工作流照 `docs/RECIPES.md` 六个配方执行（课件→多语种课程包 / 讲义→答疑库 / 版本 diff / 多师协同 / 科教融合四件套 / 知识库六环节取材），不要在配方已覆盖的场景另造流程。
                 * **特化技能**：数字分身/视频/语音/多师协同/场景/多语同步/实时问答按能力档案启用；当前均为降级实现（level=degraded 属设计预期），交付物是制作清单等中间态，绝不假装已成功出片。
                 * **质量守则**：工具的"降级策略"字段是承诺不是弱点 —— 没外部引擎就明确写明"降级为 Y"。区分"文件已保存 / 工具已调用 / 同步完成"三种报告，不混为一谈。

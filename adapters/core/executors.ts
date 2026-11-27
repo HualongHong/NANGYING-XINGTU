@@ -1798,11 +1798,17 @@ const rawExecutors: Record<
         persisted = undefined;
       }
     }
+    const { acquisitionPlan, reviewQueue, ...kbOnly } = result.data ?? { acquisitionPlan: [], reviewQueue: [] };
     return {
       ...result,
       level,
       degradationNote: notes.join('；'),
-      data: { knowledgeBase: result.data, ...(persisted ? { persisted } : {}) },
+      data: {
+        knowledgeBase: result.data ? kbOnly : undefined,
+        acquisitionPlan,
+        reviewQueue,
+        ...(persisted ? { persisted } : {}),
+      },
     };
   },
   // 教学知识库检索（KAG-1 R23）：kb 内存直传或 kbId 落盘加载 → 五段管线证据包

@@ -91,3 +91,19 @@
 **预期产物**：四件套 PDF/HTML + 编号映射表 + 来源字段表 + 复核记录表（附录 F 落盘，供复盘"为什么选了这篇没选那篇"）。
 
 **常见坑**：① 用户前提与事实不符（"这 6 篇就是全部吧"）——先枚举页脚去重给事实再问口径，不直接执行（红线 M1）；② 编号体系一变联动面 ≥6 处（页脚/案例卡/出处表/导航表/封面/收束）——一次性改全并做覆盖回归（C5）；③ 编译告警突增先归因（模板随页数线性增长属正常，M8）；④ 结论性数字找不到可靠命中就留白注明以教材为准（K2），**宁可少写一条数据，不可编一条关联**；⑤ 大材料链路分钟级耗时——六个技能支持 `async: true` 提交异步作业（`manage_async_tasks` 轮询，不受宿主单次调用超时限制）：配方 1/2 的 `parse_course_material`/`extract_knowledge_graph`/`fuse_knowledge_graphs`/`translate_multilingual`，以及本配方的 `parse_abstract_collection`（数百页摘要集）/`select_research_evidence`（LLM 词族派生 + 大候选池）；同步超时会附此建议。
+
+## 配方 6：教学知识库——六环节统一取材（KAG-1）
+
+**场景**：多材料课程（讲义/教材/摘要集/公开材料）要反复出教案、讲稿、题、答疑、课件——先建一次知识库，六个环节统一从库取材，不再各自翻原文。
+
+**调用序列**：
+
+1. `parse_course_material` × N → 各材料结构化输出；`extract_knowledge_graph` / `fuse_knowledge_graphs` → 课程图谱。
+2. `build_teaching_knowledge_base`：`{ materials: [{ materialId, parse, origin?, citation? }], graph, qaPairs?, assessments? }` → KB（概念分层 + 段落级证据 + 关联 + 索引 + `coverageGaps` 缺口清单 + `acquisitionPlan` 采集清单）；默认落盘 `configDir()/kb/<kbId>/kb.json`。大语料 `async: true`。
+3. `query_teaching_knowledge_base`：`{ kbId 或 kb, query, topK?, budgetTokens? }` → 证据包（倒排∪图谱扩展，得分构成与出处逐条可见；零命中出缺口+采集建议，绝不硬答）。
+4. **六环节消费**（全部可选 `kbRefs` = 上一步 evidencePack，缺省行为不变）：教案 `design_course_structure`（lesson.evidenceRefs）→ 讲稿 `generate_teaching_script`（证据段并入取材池）→ 测试/出卷 `generate_assessment`（item.evidenceIds）→ 辅导 `realtime_qa_stream`（答案附证据出处）→ 课件 `export_course_package`（`knowledgeBase` → kb/kb.json 随包交付）。
+5. **开放采集回路**（缺口驱动）：`coverageGaps`/`acquisitionPlan` → 按检索词三通道采集（SciVerse 学术证据 / 摘要集导入 origin=abstractCollection / 教师供给公开材料 origin=publicMaterial+citation）→ `build_teaching_knowledge_base` merge 模式（`base` + 新材料 + `externalConcepts`）→ 缺口闭合；LLM 提议挂接走 `llmLinkProposals`（mustReview）→ 人工确认 `confirmReview` 转 human。
+
+**预期产物**：KB artifact（schema `nangying-starmap/kb@1`）+ 证据包 + 六环节带出处产物 + 采集清单/复核队列。
+
+**常见坑**：① 换嵌入模型必须重建 KB（向量维度校验会拦截混用）；② inferred 概念与 llm 挂接未经 confirmReview 前，六环节输出里显式标注"待复核"，别当已确认事实用；③ citation 缺失字段就是"未提供"，绝不补造——导出与审计（audit_teaching_package C6 来源口径）依赖这一纪律；④ 库内无证据时按采集清单补料再查，不要让 LLM 凭世界知识硬答（红线）。

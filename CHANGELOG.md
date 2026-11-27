@@ -4,6 +4,19 @@
 
 ## [Unreleased]（1.9.0 预备 · KAG-1）
 
+R25 迭代（KAG-1 第三轮）：开放采集回路 + 六环节 kbRefs 集成 + 配方 6——SPEC G5 落地。测试 654 → 670。
+
+### Added
+
+- **开放采集回路（SPEC §4.5）**：build 增 `base` 合并扩展模式（新材料/概念并入、索引关联全量重建、kbId 承袭、base 挂接 human/llm 状态保留；merge 下 materials 可空）；`externalConcepts`（external 人工供给 / inferred LLM 提议入复核队列，归一化同义不重复建）；`llmLinkProposals`（确定性校验后 mustReview=true，LLM 只提议不拍板）；`confirmReview`（true/数组转 human）；输出增 `acquisitionPlan`（缺口概念→检索词种子）+ `reviewQueue`（派生视图，落盘仅 KB 本体）。
+- **六环节 kbRefs 集成（SPEC §4.3，全部可选、缺省行为不变）**：教案 design_course_structure（lesson.evidenceRefs）／讲稿 generate_teaching_script（证据段并入原文取材池+回声）／测试出卷 generate_assessment（item.evidenceIds）／辅导 realtime_qa_stream（答案附证据出处 top2 含 citation）／课件 export_course_package（knowledgeBase → kb/kb.json）。
+- **配方 6（知识库六环节统一取材）**：RECIPES.md 全流程（建库→检索→六环节→开放采集回路）+ 常见坑四条；DSH preset 五→六配方 + persona 知识库取材行；releasePack 配方命令 5→6。
+- **examplesWalkthrough 配方 6 链**：CC0 示例端到端——建库（讲义→KB）→ 检索（得分构成/出处）→ 六环节 kbRefs 冒烟 → 开放采集回路（外部概念缺口→采集清单→摘要集 abstractCollection merge→缺口闭合）+ 分层正确率 100% + **零虚构引用扫描**（external 证据 citation 只含真实提供字段）。
+
+### Fixed
+
+- llm 挂接提议校验的条目集漏 base 既有挂接条目（R25-A 测试揪出）；build 执行器输出形状对齐契约（acquisitionPlan/reviewQueue 提升 data 顶层）；generate_assessment 执行器逐字段解构丢 kbRefs。
+
 R24 迭代（KAG-1 第二轮）：向量召回增强——`vectorRetrieval` 能力位终于落地消费。`SkillContext.embedder` 宿主注入位 + 纯 TS 余弦向量索引（增量缓存）+ build/query 执行器融合 + settings_card 向量端点（extra.embeddings 与 extra.llm 同纪律）。测试 638 → 654。
 
 ### Added

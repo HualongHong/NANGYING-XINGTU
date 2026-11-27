@@ -17,7 +17,7 @@ const SECRET_RES = [
   /\bsk-[A-Za-z0-9]{16,}\b/,
 ];
 const EXPECTED_SKILLS = 40;
-const EXPECTED_RECIPES = 5;
+const EXPECTED_RECIPES = 6;
 
 let outDir: string;
 
@@ -166,10 +166,10 @@ describe('release 打包产物：技能包（40 = 33 共享 + 7 特化）', () =
     expect(kebabDirs).toEqual(snakeDirs.map((id) => id.replaceAll('_', '-')).sort());
   });
 
-  it('配方命令 5 个（kimiwork/qoder 共享生成）', () => {
+  it('配方命令 6 个（kimiwork/qoder 共享生成）', () => {
     for (const p of ['kimiwork', 'qoder']) {
       const cmds = readdirSync(join(outDir, p, 'commands')).filter((f) => f.endsWith('.md')).sort();
-      expect(cmds).toEqual(['recipe-1.md', 'recipe-2.md', 'recipe-3.md', 'recipe-4.md', 'recipe-5.md']);
+      expect(cmds).toEqual(['recipe-1.md', 'recipe-2.md', 'recipe-3.md', 'recipe-4.md', 'recipe-5.md', 'recipe-6.md']);
       for (const f of cmds) {
         const text = readFileSync(join(outDir, p, 'commands', f), 'utf8');
         expect(text).toContain(`name: "${f.replace('.md', '')}"`);

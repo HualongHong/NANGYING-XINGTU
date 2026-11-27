@@ -2017,6 +2017,10 @@
         "assessments",
         "qaPairs",
         "kbId",
+        "base",
+        "externalConcepts",
+        "llmLinkProposals",
+        "confirmReview",
         "persist",
         "async"
       ],
@@ -2066,7 +2070,34 @@
           "name": "kbId",
           "kind": "string",
           "required": false,
-          "hint": "'知识库标识（缺省按材料内容哈希派生）'"
+          "hint": "'知识库标识（缺省按材料内容哈希派生；merge 模式承袭 base.kbId）'"
+        },
+        {
+          "name": "base",
+          "kind": "object",
+          "required": false,
+          "hint": "'既有 KB artifact（合并扩展模式；此时 materials 可为空数组）'",
+          "producer": [
+            "build_teaching_knowledge_base"
+          ]
+        },
+        {
+          "name": "externalConcepts",
+          "kind": "array",
+          "required": false,
+          "hint": "[{ label, origin: 'external'|'inferred', aliases? }]；inferred 入复核队列"
+        },
+        {
+          "name": "llmLinkProposals",
+          "kind": "array",
+          "required": false,
+          "hint": "'[{ itemId, itemKind, conceptId }]；校验后 mustReview=true 入复核队列'"
+        },
+        {
+          "name": "confirmReview",
+          "kind": "any",
+          "required": false,
+          "hint": "'true=全部 mustReview 转 human；数组=仅确认指定 itemId'"
         },
         {
           "name": "persist",

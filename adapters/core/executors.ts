@@ -1770,6 +1770,7 @@ const rawExecutors: Record<
     let persisted: string | undefined;
     if (result.data) {
       persisted = join(configDir(), 'kb', result.data.kbId.replace(/[\/:*?"<>|\s]/g, '_'), 'kb.json');
+      // 落盘仅 KB 本体（acquisitionPlan/reviewQueue 为派生视图，随输出返回不入盘）
       // R24：embedder 在场构建向量索引（增量缓存：同 kbId 旧索引同文本同模型复用）
       if (ctx.embedder) {
         let previous = null;
@@ -1788,8 +1789,9 @@ const rawExecutors: Record<
         }
       }
       if (persist) {
+        const { acquisitionPlan: _ap, reviewQueue: _rq, ...kbOnly } = result.data;
         mkdirSync(dirname(persisted), { recursive: true });
-        writeFileSync(persisted, JSON.stringify(result.data), 'utf8');
+        writeFileSync(persisted, JSON.stringify(kbOnly), 'utf8');
       } else {
         persisted = undefined;
       }

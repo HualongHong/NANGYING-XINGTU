@@ -16,6 +16,7 @@
 - `courseType`（可选）：课型 `'lecture'|'lab'|'hybrid'`（讲授/实验/混合）——影响环节模板比例（实验课练习环节加量）；缺省 lecture，行为与旧版一致
 - `deliverables`（可选）：交付物清单，回声进 `courseScript.deliverables` 供下游导出对齐
 - `ctx`（可选）：宿主注入上下文，可携带 `llm`（`LLMProvider`）启用结构增强（模块命名、课时目标、衔接语）
+- `kbRefs`（可选，KAG-1 R25）：KB 证据包（query_teaching_knowledge_base 输出的 evidencePack）——课时挂接证据出处（lesson.evidenceRefs，命中本课时概念的证据 id）。
 
 ## 输入声明
 
@@ -48,6 +49,11 @@ inputs:
     kind: array
     required: false
     hint: "交付物清单（如 [\"讲义\",\"习题册\"]）：回声进 courseScript.deliverables，供下游导出对齐"
+  - name: kbRefs
+    kind: object
+    required: false
+    hint: 'KB 证据包（query_teaching_knowledge_base 输出 evidencePack）'
+    producer: [query_teaching_knowledge_base]
 ```
 ## 输出
 - `courseScript`：课程总体脚本（标题、受众、总时长、模块编排与时间分配）

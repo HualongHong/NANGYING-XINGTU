@@ -41,6 +41,8 @@ export interface DesignCourseStructureInput {
   courseType?: CourseType;
   /** 交付物清单（可选）：回声进 courseScript.deliverables，供下游导出对齐 */
   deliverables?: string[];
+  /** KAG-1 R25：KB 证据包（query_teaching_knowledge_base 输出）——课时挂接证据出处（evidenceRefs） */
+  kbRefs?: import('../kb/kbTypes.js').EvidencePack;
 }
 
 export type PhaseKind = '导入' | '讲解' | '示例' | '练习' | '小结';
@@ -70,6 +72,8 @@ export interface Lesson {
   priorConceptIds?: string[];
   /** 课时目标（LLM 增强产物） */
   objective?: string;
+  /** KB 证据挂接（kbRefs 提供时）：命中本课时概念的证据 id 列表（确定性排序） */
+  evidenceRefs?: string[];
 }
 
 export interface CourseModule {
@@ -448,6 +452,9 @@ export async function designCourseStructure(
     }
   }
 
+  // KAG-1 R25：kbRefs 证据包 → 课时挂接证据出处
+  if (input.kbRefs) attachKbEvidenceRefs(modules, input.kbRefs);
+
   return {
     skillId: DESIGN_COURSE_STRUCTURE_ID,
     level,
@@ -472,4 +479,21 @@ export async function designCourseStructure(
     },
     degradationNote: note,
   };
+}
+
+/** KAG-1 R25：kbRefs 证据包 → 课时 evidenceRefs（命中本课时概念的证据 id，确定性排序） */
+export function attachKbEvidenceRefs(
+  modules: CourseModule[],
+  kbRefs: import('../kb/kbTypes.js').EvidencePack,
+): void {
+  for (const mod of modules) {
+    for (const lesson of mod.lessons) {
+      const conceptSet = new Set(lesson.conceptIds);
+      const refs = kbRefs.items
+        .filter((i) => i.conceptIds.some((c) => conceptSet.has(c)))
+        .map((i) => i.evidenceId)
+        .sort();
+      if (refs.length > 0) lesson.evidenceRefs = refs;
+    }
+  }
 }

@@ -1024,13 +1024,14 @@ const rawExecutors: Record<
     return { skillId: 'manage_async_tasks', level: 'unavailable', errorCode: 'INVALID_INPUT' as const, degradationNote: `未知 operation：${operation}（可选 query/list/cancel/cleanup）` };
   },
   generate_assessment: async (inputs, ctx) => {
-    const { graph, count, difficulty, bloomLevels, includeExplanations, commonErrors } = inputs as {
+    const { graph, count, difficulty, bloomLevels, includeExplanations, commonErrors, kbRefs } = inputs as {
       graph: never;
       count?: number;
       difficulty?: 'easy' | 'medium' | 'hard' | 'mixed';
       bloomLevels?: string[];
       includeExplanations?: boolean;
       commonErrors?: boolean;
+      kbRefs?: import('../../core/kb/kbTypes.js').EvidencePack;
     };
     return generateAssessment(
       {
@@ -1040,6 +1041,7 @@ const rawExecutors: Record<
         ...(bloomLevels ? { bloomLevels: bloomLevels as never } : {}),
         ...(includeExplanations !== undefined ? { includeExplanations } : {}),
         ...(commonErrors !== undefined ? { commonErrors } : {}),
+        ...(kbRefs !== undefined ? { kbRefs } : {}),
       },
       ctx,
     );

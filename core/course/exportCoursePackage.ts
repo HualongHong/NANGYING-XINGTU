@@ -47,6 +47,8 @@ export interface ExportCoursePackageInput {
   graph?: CourseKnowledgeGraph;
   /** 问答库（可选，导出为 qa.json） */
   qaKnowledgeBase?: QaKnowledgeBase;
+  /** KAG-1 R25：教学知识库（可选，导出为 kb/kb.json，随包交付六环节取材面） */
+  knowledgeBase?: import('../kb/kbTypes.js').TeachingKnowledgeBase;
   /** R14：handout-docx 附加表格（格子支持 { text, colSpan?, rowSpan?, align? } 合并单元格） */
   handoutTables?: Array<{ title?: string; rows: OoxmlRow[] }>;
   meta?: { title?: string; author?: string; lang?: string };
@@ -191,7 +193,7 @@ ${body}
 export async function exportCoursePackage(
   input: ExportCoursePackageInput,
 ): Promise<SkillResult<ExportCoursePackageOutput>> {
-  const { script, translations = [], graph, qaKnowledgeBase, handoutTables, meta, options } = input;
+  const { script, translations = [], graph, qaKnowledgeBase, knowledgeBase, handoutTables, meta, options } = input;
   const packageName = options?.packageName ?? 'course-package';
   const lang = options?.lang ?? meta?.lang ?? 'zh';
   const title = meta?.title ?? script.storyboardScript[0]?.title ?? packageName;
@@ -265,6 +267,7 @@ export async function exportCoursePackage(
     if (wantsStarmapHtml) push('starmap/index.html', renderStarmapHtml(graph, title));
   }
   if (qaKnowledgeBase) push('qa/qa.json', JSON.stringify(qaKnowledgeBase, null, 2));
+  if (knowledgeBase) push('kb/kb.json', JSON.stringify(knowledgeBase, null, 2));
 
   // R5-5.4：自定义目录模板——按课时产出 markdown 文件替换默认 markdown/package.md
   const tpl = options?.directoryTemplate;

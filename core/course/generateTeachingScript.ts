@@ -31,6 +31,8 @@ export interface GenerateTeachingScriptInput {
   sourceText?: string;
   /** 必含知识点清单（概念标签，可选）：输出 coverage 覆盖报告，标注未覆盖项 */
   requiredConcepts?: string[];
+  /** KAG-1 R25：KB 证据包——证据段并入原文取材池（同 sourceText 引用机制泛化） */
+  kbRefs?: import('../kb/kbTypes.js').EvidencePack;
 }
 
 export type SceneType = '标题卡' | 'PPT展示' | '教师口播' | '示例演示' | '练习' | '小结';
@@ -74,6 +76,8 @@ export interface TeachingScript {
     coveredConcepts: string[];
     missingConcepts: string[];
   };
+  /** KB 证据取材回声（kbRefs 提供时）：并入取材池的证据 id 与句数（诚实报告） */
+  kbRefs?: { evidenceIds: string[]; sentencesAdded: number };
 }
 
 // ---------- 确定性 ID ----------
@@ -210,7 +214,12 @@ export async function generateTeachingScript(
 ): Promise<SkillResult<TeachingScript>> {
   const { structure, style } = input;
   const verbosity = style?.verbosity ?? 'standard';
-  const sourceSentences = input.sourceText ? splitSentences(input.sourceText) : [];
+  const kbEvidenceItems = input.kbRefs?.items ?? [];
+  const kbSentences = kbEvidenceItems.flatMap((i) => splitSentences(i.text));
+  const sourceSentences = [
+    ...(input.sourceText ? splitSentences(input.sourceText) : []),
+    ...kbSentences,
+  ];
   const labelOf = new Map<string, string>();
   // conceptId -> label 需要从上游图谱取；CourseStructure 未携带 label，
   // 测评点 assessmentPoints 与 conceptIds 同序，作为 label 来源
@@ -345,7 +354,15 @@ export async function generateTeachingScript(
   return {
     skillId: GENERATE_TEACHING_SCRIPT_ID,
     level,
-    data: { storyboardScript, voiceoverScript, subtitleScript, ...(coverage ? { coverage } : {}) },
+    data: {
+      storyboardScript,
+      voiceoverScript,
+      subtitleScript,
+      ...(coverage ? { coverage } : {}),
+      ...(kbEvidenceItems.length > 0
+        ? { kbRefs: { evidenceIds: kbEvidenceItems.map((i) => i.evidenceId), sentencesAdded: kbSentences.length } }
+        : {}),
+    },
     degradationNote: note,
   };
 }

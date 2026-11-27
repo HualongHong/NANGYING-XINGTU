@@ -16,6 +16,7 @@
 - `bloomLevels`（可选）：Bloom 层级约束数组（记忆/理解/应用/分析），默认全部允许
 - `includeExplanations`（可选）：输出解析
 - `commonErrors`（可选）：输出典型错误清单（错误归因直接决定教学价值，反馈 a 4.2-N1）
+- `kbRefs`（可选，KAG-1 R25）：KB 证据包（query_teaching_knowledge_base 输出的 evidencePack）——按概念给题目挂证据出处（item.evidenceIds）。
 
 ## 输入声明
 
@@ -50,6 +51,11 @@ inputs:
     kind: boolean
     required: false
     hint: "true 时输出典型错误清单"
+  - name: kbRefs
+    kind: object
+    required: false
+    hint: 'KB 证据包（query_teaching_knowledge_base 输出 evidencePack）'
+    producer: [query_teaching_knowledge_base]
 ```
 
 ## 输出

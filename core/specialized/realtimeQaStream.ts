@@ -18,6 +18,8 @@ export interface RealtimeQaInput {
   question: string;
   qaKnowledgeBase: QaKnowledgeBase;
   topK?: number;
+  /** KAG-1 R25：KB 证据包——答案附证据出处（evidence，含 citation/origin） */
+  kbRefs?: import('../kb/kbTypes.js').EvidencePack;
 }
 
 export interface RankedAnswer {
@@ -33,6 +35,8 @@ export interface RealtimeQaOutput {
   mode: 'async-single-turn';
   question: string;
   answers: RankedAnswer[];
+  /** KB 证据出处（kbRefs 提供时，top 2；含 citation/origin 可核验） */
+  evidence?: Array<{ evidenceId: string; text: string; origin: string; citation: Record<string, unknown> }>;
   /** 流式语义降级说明 */
   note: string;
 }
@@ -67,6 +71,16 @@ export async function realtimeQaStream(
       mode: 'async-single-turn',
       question,
       answers,
+      ...(input.kbRefs && input.kbRefs.items.length > 0
+        ? {
+            evidence: input.kbRefs.items.slice(0, 2).map((i) => ({
+              evidenceId: i.evidenceId,
+              text: i.text,
+              origin: i.origin,
+              citation: i.citation as Record<string, unknown>,
+            })),
+          }
+        : {}),
       note: '实时通道/流式 API 未接入，降级为异步单轮问答（无增量输出与打断控制）',
     },
     degradationNote: '实时通道/流式 API 未接入，已降级为异步问答',

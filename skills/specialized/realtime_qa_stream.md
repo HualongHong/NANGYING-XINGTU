@@ -13,6 +13,7 @@
 - `question`：学习者提问文本
 - `qaKnowledgeBase`：课程问答库（build_qa_knowledge_base 输出）
 - `topK`：返回答案数（可选，默认 3）
+- `kbRefs`（可选，KAG-1 R25）：KB 证据包（query_teaching_knowledge_base 输出）——答案附证据出处（evidence top2，含 citation/origin 可核验）
 
 ## 输入声明
 
@@ -36,6 +37,11 @@ inputs:
     kind: number
     required: false
     hint: "返回答案数（默认 3）"
+  - name: kbRefs
+    kind: object
+    required: false
+    hint: 'KB 证据包（query_teaching_knowledge_base 输出 evidencePack）'
+    producer: [query_teaching_knowledge_base]
 ```
 ## 输出
 - `mode`：`'async-single-turn'`（异步单轮；流式/打断语义降级说明）

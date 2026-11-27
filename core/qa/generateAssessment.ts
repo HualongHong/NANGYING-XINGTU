@@ -40,6 +40,8 @@ export interface AssessmentItem {
   commonErrors?: string[];
   /** 评分点 */
   scoringPoints: string[];
+  /** KB 证据出处（kbRefs 提供时：命中本题概念的证据 id，确定性排序） */
+  evidenceIds?: string[];
 }
 
 export interface GenerateAssessmentInput {
@@ -54,6 +56,8 @@ export interface GenerateAssessmentInput {
   includeExplanations?: boolean;
   /** 输出典型错误清单 */
   commonErrors?: boolean;
+  /** KAG-1 R25：KB 证据包——按概念给题目挂证据出处（evidenceIds） */
+  kbRefs?: import('../kb/kbTypes.js').EvidencePack;
 }
 
 export interface AssessmentBook {
@@ -261,6 +265,18 @@ export async function generateAssessment(
   for (const it of items) {
     byDifficulty[it.difficulty] = (byDifficulty[it.difficulty] ?? 0) + 1;
     byBloom[it.bloom] = (byBloom[it.bloom] ?? 0) + 1;
+  }
+
+  // KAG-1 R25：kbRefs 证据包 → 按概念给题目挂证据出处
+  if (input.kbRefs && input.kbRefs.items.length > 0) {
+    for (const it of items) {
+      const conceptSet = new Set(it.conceptIds);
+      const refs = input.kbRefs.items
+        .filter((i) => i.conceptIds.some((c) => conceptSet.has(c)))
+        .map((i) => i.evidenceId)
+        .sort();
+      if (refs.length > 0) it.evidenceIds = refs;
+    }
   }
 
   return {

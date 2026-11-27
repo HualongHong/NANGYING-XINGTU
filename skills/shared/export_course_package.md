@@ -14,6 +14,7 @@
 - `translations`：多语版本（可选）`[{ lang, script }]`（translate_multilingual 产物的同构结构）
 - `graph`：课程知识图谱（可选，导出为 graph.json）
 - `qaKnowledgeBase`：问答库（可选，导出为 qa.json）
+- `knowledgeBase`（可选，KAG-1 R25）：教学知识库（build_teaching_knowledge_base 输出）——导出为 kb/kb.json，随包交付六环节取材面
 - `meta`：包元数据（可选）`{ title?, author?, lang? }`
 - `options`：导出选项（可选）`{ formats?, packageName?, lang? }`；formats ∈ `scorm` | `ims` | `markdown` | `subtitles` | `multilingual` | `starmap-svg` | `starmap-html`，缺省为全部
 - `outZip` / `outDir`（可选）：写出真实产物（适配层，给了才落盘；core 只产出内容模型）
@@ -101,6 +102,11 @@ inputs:
     kind: array
     required: false
     hint: "handout-docx 附加表格 [{ title?, rows }]，rows 为行数组、格子支持纯字符串或 { text, colSpan?, rowSpan?, align? }（R14：gridSpan/vMerge 合并单元格，对齐 handout-pdf 的 PdfCell 设计）；追加在分镜表之后，不影响既有 storyboard 表格"
+  - name: knowledgeBase
+    kind: object
+    required: false
+    hint: '教学知识库（build_teaching_knowledge_base 输出，导出为 kb/kb.json）'
+    producer: [build_teaching_knowledge_base]
 ```
 ## 输出
 - `package`：包内容模型 `{ manifest, files: [{ path, content }] }`——确定性文件条目列表（POSIX 相对路径，按路径排序），压缩/落盘归适配层（`adapters/core/packageWriter.ts`：零依赖 ZIP 或目录输出）

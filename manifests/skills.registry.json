@@ -304,7 +304,8 @@
         "objectives",
         "priorKnowledge",
         "courseType",
-        "deliverables"
+        "deliverables",
+        "kbRefs"
       ],
       "required": [
         "graph",
@@ -350,6 +351,15 @@
           "kind": "array",
           "required": false,
           "hint": "交付物清单（如 [\\\"讲义\\\",\\\"习题册\\\"]）：回声进 courseScript.deliverables，供下游导出对齐"
+        },
+        {
+          "name": "kbRefs",
+          "kind": "object",
+          "required": false,
+          "hint": "'KB 证据包（query_teaching_knowledge_base 输出 evidencePack）'",
+          "producer": [
+            "query_teaching_knowledge_base"
+          ]
         }
       ],
       "outputs": [
@@ -375,7 +385,8 @@
         "structure",
         "style",
         "sourceText",
-        "requiredConcepts"
+        "requiredConcepts",
+        "kbRefs"
       ],
       "required": [
         "structure"
@@ -410,6 +421,15 @@
           "kind": "array",
           "required": false,
           "hint": "必含知识点清单（概念标签）：输出 coverage 覆盖报告（required/covered/missing），标注未覆盖项"
+        },
+        {
+          "name": "kbRefs",
+          "kind": "object",
+          "required": false,
+          "hint": "'KB 证据包（query_teaching_knowledge_base 输出 evidencePack）'",
+          "producer": [
+            "query_teaching_knowledge_base"
+          ]
         }
       ],
       "outputs": [
@@ -712,7 +732,8 @@
         "outXlsx",
         "tables",
         "linkReport",
-        "handoutTables"
+        "handoutTables",
+        "knowledgeBase"
       ],
       "required": [
         "script"
@@ -838,6 +859,15 @@
           "kind": "array",
           "required": false,
           "hint": "handout-docx 附加表格 [{ title?, rows }]，rows 为行数组、格子支持纯字符串或 { text, colSpan?, rowSpan?, align? }（R14：gridSpan/vMerge 合并单元格，对齐 handout-pdf 的 PdfCell 设计）；追加在分镜表之后，不影响既有 storyboard 表格"
+        },
+        {
+          "name": "knowledgeBase",
+          "kind": "object",
+          "required": false,
+          "hint": "'教学知识库（build_teaching_knowledge_base 输出，导出为 kb/kb.json）'",
+          "producer": [
+            "build_teaching_knowledge_base"
+          ]
         }
       ],
       "outputs": [
@@ -997,7 +1027,8 @@
         "difficulty",
         "bloomLevels",
         "includeExplanations",
-        "commonErrors"
+        "commonErrors",
+        "kbRefs"
       ],
       "required": [
         "graph"
@@ -1042,6 +1073,15 @@
           "kind": "boolean",
           "required": false,
           "hint": "true 时输出典型错误清单"
+        },
+        {
+          "name": "kbRefs",
+          "kind": "object",
+          "required": false,
+          "hint": "'KB 证据包（query_teaching_knowledge_base 输出 evidencePack）'",
+          "producer": [
+            "query_teaching_knowledge_base"
+          ]
         }
       ],
       "outputs": [
@@ -2469,7 +2509,8 @@
       "inputs": [
         "question",
         "qaKnowledgeBase",
-        "topK"
+        "topK",
+        "kbRefs"
       ],
       "required": [
         "question",
@@ -2499,6 +2540,15 @@
           "kind": "number",
           "required": false,
           "hint": "返回答案数（默认 3）"
+        },
+        {
+          "name": "kbRefs",
+          "kind": "object",
+          "required": false,
+          "hint": "'KB 证据包（query_teaching_knowledge_base 输出 evidencePack）'",
+          "producer": [
+            "query_teaching_knowledge_base"
+          ]
         }
       ],
       "outputs": [

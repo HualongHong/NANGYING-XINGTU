@@ -15,6 +15,7 @@
 - `sourceText`（可选）：讲义原文直传——讲解/示例/小结环节口播优先引用原文命中句（"原文参考：…"），减少模板化填空句；LLM 改写时原文摘录进提示词保证术语与事实一致
 - `requiredConcepts`（可选）：必含知识点清单（概念标签）——输出附 `coverage` 覆盖报告 `{ requiredConcepts, coveredConcepts, missingConcepts }`，未覆盖项如实标注
 - `ctx`（可选）：宿主注入上下文，可携带 `llm`（`LLMProvider`）启用口播稿改写增强
+- `kbRefs`（可选，KAG-1 R25）：KB 证据包（query_teaching_knowledge_base 输出的 evidencePack）——证据段并入原文取材池（同 sourceText 引用机制泛化），输出回声取材证据 id 与句数。
 
 ## 输入声明
 
@@ -42,6 +43,11 @@ inputs:
     kind: array
     required: false
     hint: "必含知识点清单（概念标签）：输出 coverage 覆盖报告（required/covered/missing），标注未覆盖项"
+  - name: kbRefs
+    kind: object
+    required: false
+    hint: 'KB 证据包（query_teaching_knowledge_base 输出 evidencePack）'
+    producer: [query_teaching_knowledge_base]
 ```
 ## 输出
 三种成稿由同一组分镜 scene 派生（字幕与口播同源，字幕 = 口播按 scene 的时间切片文本）：

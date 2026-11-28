@@ -140,7 +140,7 @@ try {
 }
 const examplePath = join(root, '.env.example');
 if (existsSync(examplePath)) {
-  const exampleLines = readFileSync(examplePath, 'utf8').split('\n');
+  const exampleLines = readFileSync(examplePath, 'utf8').split(/\r?\n/);
   for (const line of exampleLines) {
     const t = line.trim();
     const m = /^([A-Z][A-Z0-9_]*)=(.*)$/.exec(t);

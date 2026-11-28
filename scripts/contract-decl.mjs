@@ -36,6 +36,9 @@ function parseValue(raw) {
  * @returns {{usage?: string, inputs: Array<{name: string, kind: string, required: boolean, aliases: string[], hint?: string, producer?: string[]}>} | null}
  */
 export function parseDeclaration(mdText) {
+  // CRLF 归一：Windows 检出（autocrlf）或用户手编文件可能带 \r；
+  // JS 正则中 \r 是行终止符，`.` 不匹配、`$` 不容忍，不归一会整段失配
+  mdText = mdText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   const heading = mdText.indexOf('## 输入声明');
   if (heading < 0) return null;
   const fenceOpen = mdText.indexOf('```yaml', heading);

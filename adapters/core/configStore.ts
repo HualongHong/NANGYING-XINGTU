@@ -9,7 +9,7 @@
  *    即拒绝写入并提示应放 secrets；
  *  - 全程不打印密钥；readApiKey 缺失返回 undefined 不抛错。
  */
-import { readFileSync, writeFileSync, mkdirSync, chmodSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, chmodSync, existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 import type { DecoderConfig } from '../../core/decode/documentDecoder.js';
@@ -45,12 +45,26 @@ export function writeConfig(config: DecoderConfig): void {
   mkdirSync(configDir(), { recursive: true });
   writeFileSync(settingsPath(), JSON.stringify(config, null, 2), 'utf8');
   tryChmod(settingsPath(), 0o644);
+  settingsCache = null; // 写后失效（下次读重建）
 }
+
+// 读缓存（B1 效率：技能每次调用都读配置，mtime+size 未变则复用解析结果，省 read+parse）
+let settingsCache: { mtimeMs: number; size: number; value: DecoderConfig } | null = null;
+let secretsCache: { mtimeMs: number; size: number; value: Record<string, unknown> } | null = null;
 
 /** 读配置；不存在返回 undefined */
 export function readConfig(): DecoderConfig | undefined {
-  if (!existsSync(settingsPath())) return undefined;
-  return JSON.parse(readFileSync(settingsPath(), 'utf8')) as DecoderConfig;
+  if (!existsSync(settingsPath())) {
+    settingsCache = null;
+    return undefined;
+  }
+  const st = statSync(settingsPath());
+  if (settingsCache && settingsCache.mtimeMs === st.mtimeMs && settingsCache.size === st.size) {
+    return settingsCache.value;
+  }
+  const value = JSON.parse(readFileSync(settingsPath(), 'utf8')) as DecoderConfig;
+  settingsCache = { mtimeMs: st.mtimeMs, size: st.size, value };
+  return value;
 }
 
 /** 密钥名白名单形态（命名多密钥：apiKey / mineruApiKey / sciverseApiKey …） */
@@ -70,13 +84,23 @@ export function writeApiKey(apiKey: string, name = 'apiKey'): void {
   const existing = readSecretsFile();
   writeFileSync(secretsPath(), JSON.stringify({ ...existing, [name]: apiKey }, null, 2), 'utf8');
   tryChmod(secretsPath(), 0o600);
+  secretsCache = null; // 写后失效
 }
 
 function readSecretsFile(): Record<string, unknown> {
-  if (!existsSync(secretsPath())) return {};
+  if (!existsSync(secretsPath())) {
+    secretsCache = null;
+    return {};
+  }
+  const st = statSync(secretsPath());
+  if (secretsCache && secretsCache.mtimeMs === st.mtimeMs && secretsCache.size === st.size) {
+    return secretsCache.value;
+  }
   try {
     const parsed = JSON.parse(readFileSync(secretsPath(), 'utf8')) as Record<string, unknown>;
-    return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) ? parsed : {};
+    const value = typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) ? parsed : {};
+    secretsCache = { mtimeMs: st.mtimeMs, size: st.size, value };
+    return value;
   } catch {
     return {};
   }
@@ -97,7 +121,23 @@ export function clearApiKey(name = 'apiKey'): void {
     const existing = readSecretsFile();
     delete existing[name];
     writeFileSync(secretsPath(), JSON.stringify(existing, null, 2), 'utf8');
+    secretsCache = null; // 写后失效
   }
+}
+
+/** 列出全部密钥值（仅供对外消息脱敏用；不暴露名称与值的对应关系） */
+export function listSecretValues(): string[] {
+  return Object.values(readSecretsFile()).filter(
+    (v): v is string => typeof v === 'string' && v.length > 0,
+  );
+}
+
+/** 列出已配置密钥名（不含值；工作台"哪些密钥已配置"展示用） */
+export function listSecretNames(): string[] {
+  return Object.entries(readSecretsFile())
+    .filter(([, v]) => typeof v === 'string' && v.length > 0)
+    .map(([k]) => k)
+    .sort();
 }
 
 function tryChmod(path: string, mode: number): void {

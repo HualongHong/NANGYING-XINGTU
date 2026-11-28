@@ -8,7 +8,11 @@ on:
 
 jobs:
   ci:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
 
@@ -19,17 +23,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+          cache: pnpm
 
       - name: 安装依赖
         run: pnpm install --frozen-lockfile
 
-      - name: 准备 OCR 语言包（tessdata 按 .gitignore 不入库，CI 按哈希拉取）
-        run: |
-          mkdir -p tessdata
-          curl -fsSL -o tessdata/chi_sim.traineddata https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/main/chi_sim.traineddata
-          curl -fsSL -o tessdata/eng.traineddata https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/main/eng.traineddata
-          echo "a5fcb6f0db1e1d6d8522f39db4e848f05984669172e584e8d76b6b3141e1f730  tessdata/chi_sim.traineddata" | sha256sum -c -
-          echo "7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2  tessdata/eng.traineddata" | sha256sum -c -
+      - name: 准备 OCR 语言包（跨平台下载 + sha256 钉版）
+        run: node scripts/ci-tessdata.mjs
 
       - name: 契约校验（validate 九重）
         run: node scripts/validate.mjs
@@ -40,12 +40,5 @@ jobs:
       - name: 构建 dist（install-dsh 等脚本消费 dist，测试依赖其存在）
         run: pnpm run build
 
-      - name: 测试 + 反馈闭环监控
-        run: |
-          pnpm test 2>&1 | tee /tmp/test-output.log
-          TEST_STATUS=${PIPESTATUS[0]}
-          if [ "$TEST_STATUS" -ne 0 ]; then
-            grep -E "FAIL|×|Failed Tests|Tests  |Error" /tmp/test-output.log | head -n 25 | sed 's/^/::error::/'
-            exit "$TEST_STATUS"
-          fi
-          node scripts/feedback-loop.mjs
+      - name: 测试 + 反馈闭环监控（失败回注注解）
+        run: node scripts/ci-test.mjs

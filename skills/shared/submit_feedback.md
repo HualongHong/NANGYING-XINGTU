@@ -27,7 +27,7 @@
 > `scripts/validate.mjs` 校验 契约 ↔ 注册表 ↔ 执行器 三方一致。修改入参请改本段，不要手写注册表。
 
 ```yaml
-usage: "两阶段反馈：stage=prepare 生成默认脱敏的反馈草稿（绝不入库）→ 用户审阅 → stage=approve 且 approved=true 才存储至 .nangying-feedback/，供 loop engineering 监控"
+usage: "两阶段反馈：stage=prepare 生成默认脱敏的反馈草稿（绝不入库）→ 用户审阅 → stage=approve 且 approved=true 才存储至反馈目录（默认 <configDir>/feedback/，NANGYING_FEEDBACK_DIR 可覆盖），供 loop engineering 监控"
 inputs:
   - name: stage
     kind: string
@@ -73,7 +73,7 @@ inputs:
 
 ## 输出
 - prepare 返回 `draft`（脱敏后文档：docId/kind/kindLabel/summary/detail/context/redactions/sensitive?/reviewGate）+ `redactionSummary`；**不落盘**
-- approve 返回 `stored` / `path` / `docId` + loop 提示；文档写入 `.nangying-feedback/accepted/<docId>.json` 并追加 `index.jsonl`
+- approve 返回 `stored` / `path` / `docId` + loop 提示；文档写入 `<反馈目录>/accepted/<docId>.json` 并追加 `index.jsonl`（反馈目录默认 `<configDir>/feedback/`，env NANGYING_FEEDBACK_DIR 可覆盖）
 
 ## 依赖
 - 无（纯本地编排 + 文件写入；脱敏为确定性纯函数）

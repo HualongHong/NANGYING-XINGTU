@@ -16,7 +16,7 @@ const SECRET_RES = [
   /\bAKIA[0-9A-Z]{16}\b/,
   /\bsk-[A-Za-z0-9]{16,}\b/,
 ];
-const EXPECTED_SKILLS = 40;
+const EXPECTED_SKILLS = 41;
 const EXPECTED_RECIPES = 6;
 
 let outDir: string;
@@ -136,7 +136,7 @@ describe('release 打包产物：平台清单符合各平台上架标准', () =>
   });
 });
 
-describe('release 打包产物：技能包（40 = 33 共享 + 7 特化）', () => {
+describe('release 打包产物：技能包（41 = 34 共享 + 7 特化）', () => {
   it('kimiwork 保持 snake 技能名（name 规则允许）', () => {
     const dirs = skillDirs('kimiwork', 'skills');
     expect(dirs).toHaveLength(EXPECTED_SKILLS);

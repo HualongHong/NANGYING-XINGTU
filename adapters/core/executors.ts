@@ -28,6 +28,7 @@ import { readConfig, readApiKey, configDir } from './configStore.js';
 import { createDecoder, KNOWN_DECODER_PROVIDERS } from './decoders/factory.js';
 import { exportCoursePackage } from '../../core/course/exportCoursePackage.js';
 import { writePackageZip, writePackageDir } from './packageWriter.js';
+import { assertWritablePath } from './safePath.js';
 import { registerTeacherAvatar } from '../../core/specialized/registerTeacherAvatar.js';
 import { synthesizeSpeech } from '../../core/specialized/synthesizeSpeech.js';
 import { generateDigitalHumanVideo } from '../../core/specialized/generateDigitalHumanVideo.js';
@@ -125,6 +126,7 @@ const IMPLEMENTED_SKILLS = [
   'audit_teaching_package',
   'build_teaching_knowledge_base',
   'query_teaching_knowledge_base',
+  'teacher_workbench',
 ] as const;
 
 type ImplementedSkillId = (typeof IMPLEMENTED_SKILLS)[number];
@@ -911,10 +913,11 @@ const rawExecutors: Record<
         if (outPdf) pdfTargets.push(outPdf);
         if (outputPath) pdfTargets.push(join(resolvePath(outputPath), 'handout.pdf'));
         for (const target of pdfTargets) {
-          mkdirSync(dirname(target), { recursive: true });
-          writeFileSync(target, Buffer.from(built.bytes));
+          const safe = assertWritablePath(target);
+          mkdirSync(dirname(safe), { recursive: true });
+          writeFileSync(safe, Buffer.from(built.bytes));
           result.data.writtenFiles = result.data.writtenFiles ?? [];
-          result.data.writtenFiles.push(resolvePath(target));
+          result.data.writtenFiles.push(safe);
         }
         if (!built.embeddedFont) {
           result.level = 'degraded';
@@ -945,10 +948,11 @@ const rawExecutors: Record<
           }));
         }
         for (const target of xlsxTargets) {
-          mkdirSync(dirname(target), { recursive: true });
-          writeFileSync(target, Buffer.from(built.bytes));
+          const safe = assertWritablePath(target);
+          mkdirSync(dirname(safe), { recursive: true });
+          writeFileSync(safe, Buffer.from(built.bytes));
           result.data.writtenFiles = result.data.writtenFiles ?? [];
-          result.data.writtenFiles.push(resolvePath(target));
+          result.data.writtenFiles.push(safe);
         }
       }
       // R5-5.1：outputPath 落盘（整包 + 组装件），报告绝对路径
@@ -2001,6 +2005,47 @@ const rawExecutors: Record<
       degradationNote: '',
     };
   },
+  // 教师工作台：本地数据源只读聚合 + 可选 HTML 仪表盘落盘（1.10 加固可视化端）
+  teacher_workbench: async (inputs) => {
+    const { days, format, outputPath } = inputs as { days?: number; format?: string; outputPath?: string };
+    if (format !== undefined && format !== 'json' && format !== 'html') {
+      return {
+        skillId: 'teacher_workbench',
+        level: 'unavailable',
+        errorCode: 'INVALID_INPUT' as const,
+        degradationNote: `format 仅支持 "json"（默认）| "html"，收到：${String(format)}`,
+        example: '{ "days": 7, "format": "html" }',
+      };
+    }
+    const { buildWorkbenchReport, renderWorkbenchHtml } = await import('./workbench.js');
+    const report = await buildWorkbenchReport({ days });
+    let writtenHtml: string | undefined;
+    if (format === 'html') {
+      const html = renderWorkbenchHtml(report);
+      let target: string;
+      try {
+        // 显式路径过写出护栏；缺省落 configDir 内部（内部写盘不过护栏）
+        target = outputPath ? assertWritablePath(outputPath) : join(configDir(), 'workbench.html');
+      } catch (e) {
+        return {
+          skillId: 'teacher_workbench',
+          level: 'unavailable',
+          errorCode: 'INVALID_INPUT' as const,
+          degradationNote: e instanceof Error ? e.message : String(e),
+          example: '{ "format": "html", "outputPath": "D:/reports/workbench.html" }',
+        };
+      }
+      mkdirSync(dirname(target), { recursive: true });
+      writeFileSync(target, html, 'utf8');
+      writtenHtml = target;
+    }
+    return {
+      skillId: 'teacher_workbench',
+      level: 'full',
+      data: { report, ...(writtenHtml ? { writtenHtml } : {}) },
+      degradationNote: '',
+    };
+  },
 };
 
 // 输入防御包装：全部技能经 guarded 校验（缺失/类型错返回结构化中文错误，含期望形态与下一步引导）
@@ -2110,6 +2155,7 @@ const executors: Record<
     { name: 'query', kind: 'string', hint: '自然语言查询（概念名/问题/主题）' },
   ], rawExecutors.query_teaching_knowledge_base),
   describe_capabilities: guarded('describe_capabilities', [], rawExecutors.describe_capabilities),
+  teacher_workbench: guarded('teacher_workbench', [], rawExecutors.teacher_workbench),
   generate_assessment: guarded('generate_assessment', [
     { name: 'graph', kind: 'object', hint: 'extract_knowledge_graph 或 fuse_knowledge_graphs 的输出（含 entities 数组）' },
   ], rawExecutors.generate_assessment),

@@ -9,6 +9,7 @@
 import type { LLMProvider } from '../../core/llm.js';
 import { loadDotEnv, loadProjectDotEnv } from './dotenv.js';
 import { readConfig, readApiKey } from './configStore.js';
+import { withLlmCache } from './llmCache.js';
 
 const ENV_KEY_MAP: Record<string, string> = {
   minimax: 'MINIMAX_API_KEY',
@@ -74,7 +75,7 @@ export function createLlmFromEnv(opts: { dotEnvPath?: string; fetchImpl?: typeof
   const model = env.NANGYING_LLM_MODEL ?? llmCfg.model ?? config.model ?? DEFAULT_MODEL[provider] ?? 'gpt-4o';
   const fetchImpl = opts.fetchImpl ?? fetch;
 
-  return {
+  const inner: LLMProvider = {
     async complete(prompt: string, options?: { signal?: AbortSignal } & Record<string, unknown>): Promise<string> {
       // 挂起请求兜底：2 分钟 AbortSignal 超时（ MCP 超时通道防数十批同步调用卡死）
       const controller = new AbortController();
@@ -114,4 +115,8 @@ export function createLlmFromEnv(opts: { dotEnvPath?: string; fetchImpl?: typeof
       return content.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
     },
   };
+
+  // B2：opt-in 响应缓存（.env 或进程环境 NANGYING_LLM_CACHE=1；面向确定性批任务）
+  const cacheFlag = env.NANGYING_LLM_CACHE ?? process.env.NANGYING_LLM_CACHE;
+  return cacheFlag === '1' ? withLlmCache(inner, `${provider}|${model}|${endpoint}`) : inner;
 }

@@ -1536,7 +1536,7 @@
       "dependsOn": [],
       "degradation": "无外部依赖永远可用；输入非法返回 INVALID_INPUT 结构化错误，任何阶段不储存非法文档；approve 未经 approved=true 直接拒绝",
       "docPath": "skills/shared/submit_feedback.md",
-      "usage": "两阶段反馈：stage=prepare 生成默认脱敏的反馈草稿（绝不入库）→ 用户审阅 → stage=approve 且 approved=true 才存储至 .nangying-feedback/，供 loop engineering 监控"
+      "usage": "两阶段反馈：stage=prepare 生成默认脱敏的反馈草稿（绝不入库）→ 用户审阅 → stage=approve 且 approved=true 才存储至反馈目录（默认 <configDir>/feedback/，NANGYING_FEEDBACK_DIR 可覆盖），供 loop engineering 监控"
     },
     {
       "skillId": "settings_card",
@@ -2232,6 +2232,46 @@
       "degradation": "kb/kbId 缺失结构化报错；库内无命中输出 coverageGaps+采集建议绝不硬答；向量召回缺席自动纯倒排（R24 增强位）",
       "docPath": "skills/shared/query_teaching_knowledge_base.md",
       "usage": "教学知识库检索（KAG 式混合检索）：倒排∪图谱扩展→确定性融合重排→token 预算→缺口报告；输出证据包（每条带出处/得分构成），六环节统一取材入口"
+    },
+    {
+      "skillId": "teacher_workbench",
+      "name": "教师工作台",
+      "type": "shared",
+      "description": "聚合引擎状态、配置（脱敏）、异步作业、执行轨迹统计、知识库规模与反馈闭环为一份总体报告，可渲染单文件 HTML 仪表盘监测整体情况。",
+      "inputs": [
+        "days",
+        "format",
+        "outputPath"
+      ],
+      "required": [],
+      "inputSpecs": [
+        {
+          "name": "days",
+          "kind": "number",
+          "required": false,
+          "hint": "执行轨迹统计窗口（天），默认 30；如 7"
+        },
+        {
+          "name": "format",
+          "kind": "string",
+          "required": false,
+          "hint": "'\"json\"（默认）|\"html\"（渲染单文件仪表盘并落盘）'"
+        },
+        {
+          "name": "outputPath",
+          "kind": "string",
+          "required": false,
+          "hint": "HTML 写出路径（仅 format=html 生效）；缺省 <configDir>/workbench.html；如 D:/reports/workbench.html"
+        }
+      ],
+      "outputs": [
+        "report",
+        "writtenHtml"
+      ],
+      "dependsOn": [],
+      "degradation": "永远可用；个别数据源缺失时对应区块返回空集合并照常出报告；HTML 写出路径命中安全护栏返回 INVALID_INPUT",
+      "docPath": "skills/shared/teacher_workbench.md",
+      "usage": "聚合引擎状态/配置(脱敏)/异步作业/执行轨迹统计/知识库/反馈闭环为一份总体报告，可渲染单文件 HTML 仪表盘监测整体情况"
     },
     {
       "skillId": "register_teacher_avatar",

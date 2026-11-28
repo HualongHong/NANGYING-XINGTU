@@ -1,6 +1,6 @@
 # 技能速查表
 
-共 40 个技能：共享型 33 个（平台无关）+ 特化型 7 个（可降级）。
+共 41 个技能：共享型 34 个（平台无关）+ 特化型 7 个（可降级）。
 
 ## 共享型技能
 
@@ -39,6 +39,7 @@
 | audit_teaching_package | 教学包验收 | 四件套文本+期望编号 → C1–C8 判项+红线触发清单 | 缺文本判项 delegated；passed 只统计已执行判项 |
 | build_teaching_knowledge_base | 教学知识库构建 | 材料+图谱 → 概念分层/段落级证据/关联/索引一体 KB+coverageGaps 缺口清单 | 非完整形态返回空骨架+引导；挂接 wordfamily 确定性命中不凑数；不虚构证据引用 |
 | query_teaching_knowledge_base | 教学知识库检索 | 查询+KB → 倒排∪图谱扩展融合证据包（得分构成+出处+缺口报告） | kb/kbId 缺失结构化报错；零命中出缺口+采集建议绝不硬答；向量缺席纯倒排 |
+| teacher_workbench | 教师工作台 | 可选 days/format/outputPath → 引擎/配置/作业/轨迹/知识库/反馈总体报告 + HTML 仪表盘 | 永远可用；数据源缺失出空集合；HTML 路径命中护栏报 INVALID_INPUT |
 
 ## 特化型技能
 

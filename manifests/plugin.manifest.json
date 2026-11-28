@@ -43,7 +43,8 @@
       "compose_teaching_artifacts",
       "audit_teaching_package",
       "build_teaching_knowledge_base",
-      "query_teaching_knowledge_base"
+      "query_teaching_knowledge_base",
+      "teacher_workbench"
     ],
     "specialized": [
       "register_teacher_avatar",

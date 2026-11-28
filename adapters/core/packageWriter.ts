@@ -4,7 +4,8 @@
  * 时间戳固定为 1980-01-01（ZIP 纪元），保证产物确定性。
  */
 import { writeFileSync, mkdirSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname } from 'node:path';
+import { assertWritablePath, assertPackageInnerPath } from './safePath.js';
 import type { PackageContentModel } from '../../core/course/exportCoursePackage.js';
 
 // ---------- CRC32 ----------
@@ -115,16 +116,18 @@ export function toZipBuffer(model: PackageContentModel): Buffer {
   return Buffer.concat([...localParts, centralBuf, eocd]);
 }
 
-/** 写 ZIP 文件到磁盘（自动创建目录） */
+/** 写 ZIP 文件到磁盘（自动创建目录；写出路径过安全护栏） */
 export function writePackageZip(model: PackageContentModel, outPath: string): void {
-  mkdirSync(dirname(outPath), { recursive: true });
-  writeFileSync(outPath, toZipBuffer(model));
+  const safe = assertWritablePath(outPath);
+  mkdirSync(dirname(safe), { recursive: true });
+  writeFileSync(safe, toZipBuffer(model));
 }
 
-/** 目录形式输出：按包内路径写文件（自动创建子目录） */
+/** 目录形式输出：按包内路径写文件（自动创建子目录；防 zip-slip 逃逸 + 写出护栏） */
 export function writePackageDir(model: PackageContentModel, outDir: string): void {
+  assertWritablePath(outDir);
   for (const file of model.files) {
-    const full = join(outDir, file.path);
+    const full = assertPackageInnerPath(outDir, file.path);
     mkdirSync(dirname(full), { recursive: true });
     writeFileSync(full, file.content, 'utf8');
   }

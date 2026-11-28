@@ -6,6 +6,7 @@
  */
 import { createRequire } from 'node:module';
 import { conservativeDefaultProfile } from '../../core/types.js';
+import { appendTrace, traceError } from './execTrace.js';
 
 const requireNodeFs = () => createRequire(import.meta.url)('node:fs') as typeof import('node:fs');
 import type {
@@ -90,10 +91,46 @@ export abstract class AdapterBase {
   /**
    * 调用技能：先查能力档案，缺能力时沿降级阶梯降级；
    * 降级仍产出（degraded），完全不可用（unavailable）时返回错误结果。
+   * 统一埋点：每次调用落一条执行轨迹（C1；含耗时/等级/平台，错误脱敏）。
    */
   async invokeSkill<T = unknown>(
     skillId: string,
     options: InvokeOptions,
+  ): Promise<SkillResult<T>> {
+    const started = Date.now();
+    let platform: string | undefined;
+    try {
+      const profile = this.getCapabilities();
+      platform = profile.platform;
+      const result = await this.doInvokeSkill<T>(skillId, options, profile);
+      appendTrace({
+        ts: new Date().toISOString(),
+        skill: skillId,
+        ok: result.level !== 'unavailable',
+        level: result.level,
+        durationMs: Date.now() - started,
+        platform,
+      });
+      return result;
+    } catch (err) {
+      appendTrace({
+        ts: new Date().toISOString(),
+        skill: skillId,
+        ok: false,
+        level: 'error',
+        durationMs: Date.now() - started,
+        platform,
+        error: traceError(err),
+      });
+      throw err;
+    }
+  }
+
+  /** invokeSkill 主流程（轨迹埋点剥离后的原实现） */
+  protected async doInvokeSkill<T = unknown>(
+    skillId: string,
+    options: InvokeOptions,
+    profile: CapabilityProfile = this.getCapabilities(),
   ): Promise<SkillResult<T>> {
     const skill = this.skills.get(skillId);
     if (!skill) {
@@ -104,7 +141,6 @@ export abstract class AdapterBase {
       };
     }
 
-    const profile = this.getCapabilities();
     const level = this.fallback(skill, profile);
 
     if (level === 'unavailable') {

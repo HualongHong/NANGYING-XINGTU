@@ -108,6 +108,9 @@ curl -X POST http://127.0.0.1:7379/rpc \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 ```
 
+默认绑定回环地址（127.0.0.1），本机任意进程可调用；如需多进程/多用户共机隔离，
+设 `NANGYING_HTTP_TOKEN=<随机串>` 后所有请求必须携带 `Authorization: Bearer <同一串>`，否则 401。
+
 ## 7. 配置文档解码器
 
 二进制文档（PDF/PPT(X)/DOC(X)/XLSX/图片）的解码双重供给：宿主注入 `ctx.decoder` 优先；否则使用本机配置的内置供应商解码器。
@@ -142,3 +145,45 @@ LLM（讲稿润色/词族派生等）与解码器分位存放：`node scripts/in
 - 读取：解码器工厂以 `keyProvider: () => readApiKey()` 在**请求时刻**惰性读取，不缓存、不打印；
 - 使用：密钥只出现在请求的 `Authorization` 头中；
 - 错误脱敏：响应/错误文本中如出现 key 子串，替换为 `***`（`redact` 工具）；代码与日志永不接触明文 key。
+
+## 8. 教师工作台（teacher_workbench）
+
+整体运行状况一页看清：引擎状态（OCR/ffmpeg 探测）、配置摘要（**只展示密钥名，不展示值**）、
+异步作业、执行轨迹统计（调用量/成功率/平均与 P95 耗时/最近错误）、知识库规模、反馈闭环。
+
+```json
+{ "skillId": "teacher_workbench", "inputs": { "days": 7, "format": "html" } }
+```
+
+- `format` 缺省 `json` 只回报告对象；`html` 额外渲染**单文件零依赖仪表盘**（内联 SVG，浏览器直接打开）；
+- HTML 缺省写到 `<configDir>/workbench.html`，显式 `outputPath` 过写出安全护栏（禁区：配置目录/系统目录/凭证目录）；
+- 数据源是执行轨迹（见下节 `NANGYING_TRACE`），无任何外部服务依赖。
+
+## 9. 加固环境变量一览（1.10）
+
+| 变量 | 默认 | 作用 |
+|---|---|---|
+| `NANGYING_HTTP_TOKEN` | 未设（本机放行） | HTTP 入口 Bearer 鉴权令牌 |
+| `NANGYING_TRACE` | 开（测试进程默认关） | `0` 关闭执行轨迹落盘；`1` 强制开启 |
+| `NANGYING_LLM_CACHE` | 关 | `1` 开启 LLM 响应缓存（确定性批任务省 token；生成类勿开） |
+| `NANGYING_FEEDBACK_DIR` | `<configDir>/feedback` | 反馈入库目录覆盖 |
+
+安全护栏（始终生效，无需配置）：写出路径禁区（配置目录/`~/.ssh`/`~/.aws`/系统目录）、
+包内路径 zip-slip 防护、zip 解压单条目 64MB/累计 128MB 上限（防 zip bomb）、
+对外错误消息与轨迹落盘的密钥脱敏（`***`）。
+
+## 10. 多操作系统支持（Windows / macOS / Linux / UOS）
+
+CI 在 ubuntu-latest / windows-latest / macos-latest 三平台跑全量测试；UOS 等国产 Linux
+发行版按 Linux 路径支持（glibc + Node ≥22 即可）。各平台注意点：
+
+- **Windows**：配置目录 `%USERPROFILE%\.nangying-starmap\`；`secrets.json` 的 600 权限
+  chmod 为尽力而为，建议右键目录 → 属性 → 安全，收紧为仅当前用户可读；
+  路径可用 `D:\...` 或 `D:/...`；中文字体自动探测 `C:\Windows\Fonts`（msyh/simsun/simhei）；
+  计划任务/服务方式常驻时 cwd 不可控——所有内部落盘均已锚定配置目录，不依赖 cwd。
+- **macOS**：配置目录 `~/.nangying-starmap/`；中文字体自动探测 PingFang；
+  首次运行如被 Gatekeeper 拦截 node，请在「系统设置 → 隐私与安全性」放行。
+- **Linux / UOS**：配置目录 `~/.nangying-starmap/`；中文字体探测 Noto Sans CJK
+  （`/usr/share/fonts/...`），UOS 自带字体一般已覆盖；无 systemd 依赖，普通用户即可运行。
+- **通用**：路径解析统一走 `node:path`；行尾 CRLF/LF 均兼容；OCR 语言包跨平台一致
+  （`scripts/ci-tessdata.mjs` 下载 + sha256 钉版）；ffmpeg 探测跨平台（PATH 查找）。

@@ -1,14 +1,17 @@
 /**
  * 反馈存储（适配层，Node API）：仅接受审阅通过的 AcceptedFeedback 落盘。
- * 布局：.nangying-feedback/accepted/<docId>.json + index.jsonl（loop engineering 的数据源）。
- * 目录默认 .nangying-feedback（gitignored），可用 NANGYING_FEEDBACK_DIR 覆盖（测试用）。
+ * 布局：<root>/accepted/<docId>.json + index.jsonl（loop engineering 的数据源）。
+ * root 解析顺序：显式 rootDir 参数 > env NANGYING_FEEDBACK_DIR > configDir()/feedback
+ * （旧默认 CWD 相对 .nangying-feedback 在宿主 cwd 不可控时落点漂移，已废弃；
+ * 开发侧 loop 脚本 scripts/feedback-loop.mjs 仍默认读仓库根 .nangying-feedback）。
  */
 import { mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync, appendFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { configDir } from './configStore.js';
 import type { AcceptedFeedback } from '../../core/feedback/feedback.js';
 
 export function feedbackRoot(rootDir?: string): string {
-  return resolve(rootDir ?? process.env.NANGYING_FEEDBACK_DIR ?? '.nangying-feedback');
+  return resolve(rootDir ?? process.env.NANGYING_FEEDBACK_DIR ?? join(configDir(), 'feedback'));
 }
 
 export interface AcceptedIndexEntry {

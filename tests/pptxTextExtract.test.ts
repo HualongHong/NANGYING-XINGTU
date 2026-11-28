@@ -112,4 +112,25 @@ describe('pptxTextExtract', () => {
   it('非法 zip 抛中文错误', () => {
     expect(() => extractPptxText(new Uint8Array(Buffer.from('not a zip')))).toThrow('EOCD');
   });
+
+  it('zip bomb 护栏：中央目录声明解压尺寸超 64MB 直接拒绝', () => {
+    const zip = buildZip([
+      { name: 'word/document.xml', data: Buffer.from('x'.repeat(1024)), deflate: true },
+    ]);
+    // 篡改中央目录 uncompSize 字段（+24）为超大值，模拟伪造头部
+    const cdir = zip.indexOf(Buffer.from([0x50, 0x4b, 0x01, 0x02]));
+    zip.writeUInt32LE(0xffffffff, cdir + 24);
+    expect(() => readZipEntries(new Uint8Array(zip), new Set(['word/document.xml'])))
+      .toThrow(/疑似 zip bomb/);
+  });
+
+  it('zip bomb 护栏：高压缩比条目解压超 64MB 被 maxOutputLength 截停', () => {
+    // 80MB 零字节 deflate 后仅 ~80KB，头部尺寸字段写真实值 80MB>64MB 会先触发预检；
+    // 这里把头部 uncompSize 改成 0（data descriptor 撒谎场景），验证解压侧兜底
+    const big = Buffer.alloc(80 * 1024 * 1024, 0);
+    const zip = buildZip([{ name: 'a.bin', data: big, deflate: true }]);
+    const cdir = zip.indexOf(Buffer.from([0x50, 0x4b, 0x01, 0x02]));
+    zip.writeUInt32LE(0, cdir + 24);
+    expect(() => readZipEntries(new Uint8Array(zip), new Set(['a.bin']))).toThrow();
+  });
 });

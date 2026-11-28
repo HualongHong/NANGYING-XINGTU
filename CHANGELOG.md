@@ -2,6 +2,26 @@
 
 本插件遵循"技能即契约"的迭代纪律，所有行为变更同步契约文档与 DEV_LOG。格式参照 keepachangelog 简版。
 
+## [Unreleased]
+
+1.10 加固迭代（进行中）：安全性 / 执行效率 / 可视化 + 教师工作台 + 多操作系统（Win/macOS/Linux/UOS）。测试 694 → 723。
+
+### Added
+
+- **`teacher_workbench` 教师工作台（第 41 个技能）**：聚合引擎探测（OCR/ffmpeg）、配置摘要（只报密钥名不报值）、异步作业、执行轨迹统计（调用量/成功率/平均与 P95 耗时/最近错误）、知识库规模、反馈闭环；`format:'html'` 渲染单文件零依赖仪表盘（内联 SVG，缺省落 `<configDir>/workbench.html`，显式路径过写出护栏）。
+- **执行轨迹（`execTrace`）**：`invokeSkill` 统一埋点落 `configDir()/traces/YYYY-MM.jsonl`（技能/等级/耗时/平台，错误摘要截断+脱敏）；`NANGYING_TRACE=0` 关闭（测试进程默认关）。
+- **写出路径护栏（`safePath`）**：导出 PDF/XLSX/课程包统一过 `assertWritablePath`——禁区为配置目录、`~/.ssh`/`~/.gnupg`/`~/.aws`、系统目录（Unix `/etc` `/usr` 等；Windows `%WINDIR%`、Program Files，大小写不敏感）；包内路径 `assertPackageInnerPath` 防 zip-slip 逃逸。
+- **HTTP 可选 Bearer 鉴权**：`NANGYING_HTTP_TOKEN` 设置后强制 `Authorization: Bearer`（timingSafeEqual 比较），未设保持 127.0.0.1 本机放行。
+- **zip 解压护栏**：`readZipEntries` 单条目 64MB（中央目录声明预检 + `maxOutputLength` 兜底伪造头部）/累计 128MB 上限，防 zip bomb。
+- **CI 三平台 matrix**：ubuntu/windows/macos 全量测试；tessdata 下载+sha256 钉版与测试失败注解回注抽为跨平台脚本（`ci-tessdata.mjs`/`ci-test.mjs`），告别 bash 专属语法。
+- **LLM 响应缓存（opt-in）**：`NANGYING_LLM_CACHE=1` 时按 `sha256(provider|model|endpoint + prompt)` 落盘缓存（TTL 7 天），确定性批任务省 token；错误不缓存，读写失败静默回落。
+- **配置读缓存**：settings/secrets 按 mtime+size 缓存解析结果（写穿透失效），技能每次调用省 read+parse。
+
+### Changed
+
+- **密钥脱敏统一出口（`redact`）**：MCP/HTTP 的 tools/call 结果与错误通道、执行轨迹落盘前，已知密钥值（secrets.json + 名字含 KEY/TOKEN/SECRET/PASSWORD 的 env，≥8 字符）一律替换为 `***`。
+- **反馈默认目录**：`submit_feedback` 入库缺省从 CWD 相对 `.nangying-feedback` 改为 `<configDir>/feedback`（宿主 cwd 不可控时落点不再漂移）；`NANGYING_FEEDBACK_DIR` 覆盖不变；开发侧 `feedback-loop.mjs` 仍读仓库根目录。
+
 ## [1.9.0] - 2026-11-27
 
 R26 迭代（KAG-1 收官）：eval 度量硬门槛落地 + 挂接语义修正 + 文档 + 发版。测试 691 → 695。

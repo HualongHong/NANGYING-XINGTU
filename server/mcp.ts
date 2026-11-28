@@ -8,6 +8,7 @@
  */
 import type { AdapterBase } from '../adapters/core/adapter.base.js';
 import { LocalAdapter } from '../adapters/core/local.adapter.js';
+import { redactSecrets, redactDeep } from '../adapters/core/redact.js';
 import manifest from '../manifests/plugin.manifest.json' with { type: 'json' };
 import { pathToFileURL } from 'node:url';
 
@@ -125,9 +126,11 @@ export async function handleMessage(
               }) + String.fromCharCode(10));
             };
         const result = await adapter.invokeSkill(name, { inputs: args, onProgress });
-        const text = JSON.stringify(result, null, 2);
+        // 出口统一脱敏：provider 错误体/异常 message 可能回显密钥（A2 加固）
+        const safeResult = redactDeep(result);
+        const text = JSON.stringify(safeResult, null, 2);
         // structuredContent 直接复用结果对象，避免大结果 stringify 后再 parse 的额外内存与 CPU 开销。
-        const structuredContent = typeof result === 'object' && result !== null ? result : undefined;
+        const structuredContent = typeof safeResult === 'object' && safeResult !== null ? safeResult : undefined;
         return {
           jsonrpc: '2.0',
           id: msg.id,
@@ -143,7 +146,7 @@ export async function handleMessage(
           id: msg.id,
           error: {
             code: INTERNAL_ERROR,
-            message: `技能调用失败：${err instanceof Error ? err.message : String(err)}`,
+            message: `技能调用失败：${redactSecrets(err instanceof Error ? err.message : String(err))}`,
           },
         };
       }
@@ -211,7 +214,7 @@ export function startMcpServer(adapter: AdapterBase): void {
         process.stdout.write(JSON.stringify({
           jsonrpc: '2.0',
           id: msg.id ?? null,
-          error: { code: INTERNAL_ERROR, message: `服务处理失败：${err instanceof Error ? err.message : String(err)}` },
+          error: { code: INTERNAL_ERROR, message: `服务处理失败：${redactSecrets(err instanceof Error ? err.message : String(err))}` },
         }) + '\n');
       });
     }

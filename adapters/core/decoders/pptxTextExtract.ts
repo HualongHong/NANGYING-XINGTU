@@ -17,9 +17,14 @@ const CDIR_SIG = 0x02014b50;
 const LOCAL_SIG = 0x04034b50;
 
 /** 从 zip 字节中按 entry 名集合提取未压缩数据 */
+/** 解压护栏：单条目 64MB / 累计 128MB（防 zip bomb 撑爆内存；正常课件 XML 远低于此） */
+export const MAX_UNZIP_ENTRY_BYTES = 64 * 1024 * 1024;
+export const MAX_UNZIP_TOTAL_BYTES = 128 * 1024 * 1024;
+
 export function readZipEntries(zip: Uint8Array, names: Set<string>): Map<string, Buffer> {
   const buf = Buffer.from(zip);
   const out = new Map<string, Buffer>();
+  let totalOut = 0;
 
   // 从尾部扫描 EOCD（签名 0x06054b50，注释长度字段之后即为文件尾）
   let eocd = -1;
@@ -35,6 +40,7 @@ export function readZipEntries(zip: Uint8Array, names: Set<string>): Map<string,
     if (buf.readUInt32LE(ptr) !== CDIR_SIG) break;
     const method = buf.readUInt16LE(ptr + 10);
     const compSize = buf.readUInt32LE(ptr + 20);
+    const uncompSize = buf.readUInt32LE(ptr + 24);
     const nameLen = buf.readUInt16LE(ptr + 28);
     const extraLen = buf.readUInt16LE(ptr + 30);
     const commentLen = buf.readUInt16LE(ptr + 32);
@@ -43,12 +49,23 @@ export function readZipEntries(zip: Uint8Array, names: Set<string>): Map<string,
     ptr += 46 + nameLen + extraLen + commentLen;
 
     if (!names.has(name)) continue;
+    // 头部声明尺寸预检（廉价）；maxOutputLength 兜底头部撒谎（data descriptor 场景）
+    if (uncompSize > MAX_UNZIP_ENTRY_BYTES) {
+      throw new Error(`zip 条目 ${name} 声明解压后 ${(uncompSize / 1048576).toFixed(1)}MB，超过 64MB 上限（疑似 zip bomb），已拒绝`);
+    }
     if (buf.readUInt32LE(localOffset) !== LOCAL_SIG) continue;
     const lNameLen = buf.readUInt16LE(localOffset + 26);
     const lExtraLen = buf.readUInt16LE(localOffset + 28);
     const dataStart = localOffset + 30 + lNameLen + lExtraLen;
     const raw = buf.subarray(dataStart, dataStart + compSize);
-    out.set(name, method === 8 ? inflateRawSync(raw) : Buffer.from(raw));
+    const data = method === 8
+      ? inflateRawSync(raw, { maxOutputLength: MAX_UNZIP_ENTRY_BYTES })
+      : Buffer.from(raw);
+    totalOut += data.length;
+    if (totalOut > MAX_UNZIP_TOTAL_BYTES) {
+      throw new Error(`zip 解压累计超过 128MB 上限（疑似 zip bomb），已拒绝`);
+    }
+    out.set(name, data);
   }
   return out;
 }

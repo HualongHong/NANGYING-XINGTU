@@ -3,11 +3,24 @@
  * 与 MCP 层共用 handleMessage（同一 JSON-RPC handler）。
  */
 import { createServer, type Server } from 'node:http';
+import { timingSafeEqual } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import type { AdapterBase } from '../adapters/core/adapter.base.js';
+import { redactSecrets } from '../adapters/core/redact.js';
 import { handleMessage } from './mcp.js';
 
 const MAX_BODY_BYTES = 10 * 1024 * 1024;
+
+/** 可选 Bearer 鉴权：env NANGYING_HTTP_TOKEN 设置后强制校验（默认绑 127.0.0.1，本机场景可不设） */
+function authorized(req: import('node:http').IncomingMessage): boolean {
+  const token = process.env.NANGYING_HTTP_TOKEN;
+  if (!token) return true;
+  const header = req.headers.authorization ?? '';
+  const expected = `Bearer ${token}`;
+  const a = Buffer.from(header);
+  const b = Buffer.from(expected);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
 
 /** 启动 HTTP JSON-RPC server；返回 Server 实例（测试用，需自行 close） */
 export function startHttpServer(adapter: AdapterBase, port = 0, host = '127.0.0.1'): Promise<Server> {
@@ -15,6 +28,11 @@ export function startHttpServer(adapter: AdapterBase, port = 0, host = '127.0.0.
     if (req.method !== 'POST' || req.url !== '/rpc') {
       res.writeHead(404, { 'content-type': 'application/json' });
       res.end(JSON.stringify({ error: '仅支持 POST /rpc' }));
+      return;
+    }
+    if (!authorized(req)) {
+      res.writeHead(401, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ error: '未授权：请携带 Authorization: Bearer <NANGYING_HTTP_TOKEN>' }));
       return;
     }
     let body = '';
@@ -70,7 +88,7 @@ export function startHttpServer(adapter: AdapterBase, port = 0, host = '127.0.0.
       }).catch((err: unknown) => {
         respond(500, {
           jsonrpc: '2.0', id: msg.id ?? null,
-          error: { code: -32603, message: `服务处理失败：${err instanceof Error ? err.message : String(err)}` },
+          error: { code: -32603, message: `服务处理失败：${redactSecrets(err instanceof Error ? err.message : String(err))}` },
         });
       });
     });

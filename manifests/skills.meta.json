@@ -633,6 +633,19 @@
       "dependsOn": [],
       "degradation": "kb/kbId 缺失结构化报错；库内无命中输出 coverageGaps+采集建议绝不硬答；向量召回缺席自动纯倒排（R24 增强位）",
       "docPath": "skills/shared/query_teaching_knowledge_base.md"
+    },
+    "teacher_workbench": {
+      "skillId": "teacher_workbench",
+      "name": "教师工作台",
+      "type": "shared",
+      "description": "聚合引擎状态、配置（脱敏）、异步作业、执行轨迹统计、知识库规模与反馈闭环为一份总体报告，可渲染单文件 HTML 仪表盘监测整体情况。",
+      "outputs": [
+        "report",
+        "writtenHtml"
+      ],
+      "dependsOn": [],
+      "degradation": "永远可用；个别数据源缺失时对应区块返回空集合并照常出报告；HTML 写出路径命中安全护栏返回 INVALID_INPUT",
+      "docPath": "skills/shared/teacher_workbench.md"
     }
   }
 }

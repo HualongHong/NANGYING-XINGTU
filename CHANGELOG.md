@@ -22,6 +22,11 @@
 - **密钥脱敏统一出口（`redact`）**：MCP/HTTP 的 tools/call 结果与错误通道、执行轨迹落盘前，已知密钥值（secrets.json + 名字含 KEY/TOKEN/SECRET/PASSWORD 的 env，≥8 字符）一律替换为 `***`。
 - **反馈默认目录**：`submit_feedback` 入库缺省从 CWD 相对 `.nangying-feedback` 改为 `<configDir>/feedback`（宿主 cwd 不可控时落点不再漂移）；`NANGYING_FEEDBACK_DIR` 覆盖不变；开发侧 `feedback-loop.mjs` 仍读仓库根目录。
 
+### Fixed
+
+- **契约顶层 `kbId` 静默失效**（生态学实测抓出）：`buildTeachingKnowledgeBase` 只读 `options.kbId`，契约声明的顶层 `kbId` 入参被忽略、恒按材料哈希派生，导致 build 落盘 kbId 与 query 查找 kbId 不一致；已修（顶层生效，`options.kbId` 优先），回归测试 3 断言。
+- **Windows 契约解析 CRLF 失配**：JS 正则中 `\r` 是行终止符，Windows autocrlf 检出下「输入声明」段整段失配；`parseDeclaration` 入口归一行尾，`.env.example` 检查同步 `split(/\r?\n/)`（原写法 CRLF 下静默失效）。
+
 ## [1.9.0] - 2026-11-27
 
 R26 迭代（KAG-1 收官）：eval 度量硬门槛落地 + 挂接语义修正 + 文档 + 发版。测试 691 → 695。

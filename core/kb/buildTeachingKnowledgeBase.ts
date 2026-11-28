@@ -95,6 +95,8 @@ export interface BuildTeachingKnowledgeBaseInput {
   llmLinkProposals?: KbLlmLinkProposal[];
   /** R25：人工复核确认——true 全部转 human；数组则仅指定 itemId */
   confirmReview?: boolean | string[];
+  /** 知识库标识（契约顶层入参；缺省按材料内容哈希派生。options.kbId 优先于此） */
+  kbId?: string;
   options?: {
     kbId?: string;
     /** 固定构建时间戳（测试确定性用；缺省取当前时间） */
@@ -175,7 +177,7 @@ function emptyKb(kbId: string, builtAt: string): BuildTeachingKnowledgeBaseOutpu
 export function buildTeachingKnowledgeBase(
   input: BuildTeachingKnowledgeBaseInput,
 ): SkillResult<BuildTeachingKnowledgeBaseOutput> {
-  const kbId = input?.options?.kbId ?? input?.base?.kbId ??
+  const kbId = input?.options?.kbId ?? input?.kbId ?? input?.base?.kbId ??
     `kb-${stableHash((input?.materials ?? []).map((m) => m.materialId).join('|'))}`;
   const builtAt = input?.options?.builtAt ?? new Date().toISOString();
 

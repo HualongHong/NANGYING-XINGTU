@@ -135,6 +135,29 @@ describe('buildTeachingKnowledgeBase：构建与关联', () => {
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
   });
 
+  it('顶层 kbId 契约入参生效（回归：曾只读 options.kbId 静默忽略契约入参）', () => {
+    const r = buildTeachingKnowledgeBase({
+      materials: [{ materialId: 'm1', parse: parseOf(PARAS) }],
+      graph: graphOf(),
+      kbId: 'eco-ch01',
+    });
+    expect(r.data!.kbId).toBe('eco-ch01');
+    // options.kbId 优先于顶层（core API 显式位）
+    const r2 = buildTeachingKnowledgeBase({
+      materials: [{ materialId: 'm1', parse: parseOf(PARAS) }],
+      graph: graphOf(),
+      kbId: 'eco-ch01',
+      options: { kbId: 'explicit-opt' },
+    });
+    expect(r2.data!.kbId).toBe('explicit-opt');
+    // 缺省仍按材料哈希派生
+    const r3 = buildTeachingKnowledgeBase({
+      materials: [{ materialId: 'm1', parse: parseOf(PARAS) }],
+      graph: graphOf(),
+    });
+    expect(r3.data!.kbId).toMatch(/^kb-/);
+  });
+
   it('坏输入返回 degraded 空骨架 + 引导，不抛异常', () => {
     const r = buildTeachingKnowledgeBase({ materials: [], graph: null as never });
     expect(r.level).toBe('degraded');
